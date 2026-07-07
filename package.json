@@ -1,1 +1,22 @@
 
+{
+  "name": "raspe-sol",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Raspadinha digital em blockchain Solana com React, Express, Prisma e lotes de 5.000 bilhetes.",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w backend & npm run dev -w frontend",
+    "backend:dev": "npm run dev -w backend",
+    "frontend:dev": "npm run dev -w frontend",
+    "prisma:generate": "npm run prisma:generate -w backend",
+    "prisma:migrate": "npm run prisma:migrate -w backend",
+    "build": "npm run build -w frontend",
+    "start": "npm run start -w backend"
+  },
+  "engines": {
+    "node": ">=20"
+  }
