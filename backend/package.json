@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "build": "npm install && npx prisma generate --schema prisma/schema.postgres.prisma",
+    "build": "npx prisma generate --schema prisma/schema.postgres.prisma",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
     "prisma:deploy:postgres": "prisma migrate deploy --schema prisma/schema.postgres.prisma",
@@ -20,6 +20,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "morgan": "^1.10.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
