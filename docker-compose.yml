@@ -1,1 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: raspe_sol
+      POSTGRES_PASSWORD: raspe_sol_password
+      POSTGRES_DB: raspe_sol
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
+volumes:
+  postgres_data:
