@@ -6,16 +6,21 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "pretest": "NODE_ENV=test DATABASE_URL=file:./test.db HMAC_SECRET=test-hmac-secret-with-more-than-32-characters ADMIN_TOKEN=test-admin-token-123456 TREASURY_WALLET=11111111111111111111111111111111 SOLANA_CLUSTER=devnet REQUIRE_CHAIN_CONFIRMATION=false MAX_TRANSACTION_AGE_SECONDS=900 ALLOW_OVERPAYMENT=true IGNORE_REMAINDER=true MAX_TICKETS_PER_PURCHASE=1000 prisma db push --schema prisma/schema.prisma --skip-generate",
-    "test": "NODE_ENV=test DATABASE_URL=file:./test.db HMAC_SECRET=test-hmac-secret-with-more-than-32-characters ADMIN_TOKEN=test-admin-token-123456 TREASURY_WALLET=11111111111111111111111111111111 SOLANA_CLUSTER=devnet REQUIRE_CHAIN_CONFIRMATION=false MAX_TRANSACTION_AGE_SECONDS=900 ALLOW_OVERPAYMENT=true IGNORE_REMAINDER=true MAX_TICKETS_PER_PURCHASE=1000 node --test --test-concurrency=1 test/*.test.js",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
     "prisma:deploy:postgres": "prisma migrate deploy --schema prisma/schema.postgres.prisma",
-    "prisma:generate:postgres": "prisma generate --schema prisma/schema.postgres.prisma"
+    "prisma:generate:postgres": "prisma generate --schema prisma/schema.postgres.prisma",
+    "pretest": "NODE_ENV=test DATABASE_URL=file:./test.db HMAC_SECRET=test-hmac-secret-with-more-than-32-characters ADMIN_TOKEN=test-admin-token-123456 TREASURY_WALLET=11111 SOLANA_CLUSTER=devnet REQUIRE_CHAIN_CONFIRMATION=false MAX_TRANSACTION_AGE_SECONDS=900 ALLOW_OVERPAYMENT=true IGNORE_REMAINDER=true MAX_TICKETS_PER_PURCHASE=1000 prisma db push --schema prisma/schema.prisma --skip-generate",
+    "test": "NODE_ENV=test DATABASE_URL=file:./test.db HMAC_SECRET=test-hmac-secret-with-more-than-32-characters ADMIN_TOKEN=test-admin-token-123456 TREASURY_WALLET=11111111111111111111111 SOLANA_CLUSTER=devnet REQUIRE_CHAIN_CONFIRMATION=false MAX_TRANSACTION_AGE_SECONDS=900 ALLOW_OVERPAYMENT=true IGNORE_REMAINDER=true MAX_TICKETS_PER_PURCHASE=1000 node --test --test-concurrency=1 test/*.test.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@solana/web3.js": "^1.98.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0"
+  }
+}
