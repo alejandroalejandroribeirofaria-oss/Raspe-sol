@@ -1,1 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
 
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Batch {
+  id          String    @id @default(uuid())
+  number      Int       @unique
+  status      String    @default("OPEN")
+  createdAt   DateTime  @default(now())
+  closedAt    DateTime?
+  tickets     Ticket[]
+  auditLogs   AuditLog[]
+
+  @@index([status])
+}
+
+model Ticket {
+  id                  String              @id
+  batchId             String
+  batchNumber         Int
+  prizeLamports       BigInt              @default(0)
+  ticketPriceLamports BigInt
+  publicHash          String              @unique
+  seed                String
+  hmac                String
+  createdAt           DateTime            @default(now())
+  purchasedAt         DateTime?
+  scratchedAt         DateTime?
+  paidAt              DateTime?
+  buyerWallet         String?
+  status              String              @default("AVAILABLE")
+  purchaseSignature   String?
+  purchaseSlot        BigInt?
+  purchaseBlockTime   DateTime?
+  transactionId       String?
+  loserMessage        String?
+  batch               Batch               @relation(fields: [batchId], references: [id])
+  transaction         TransactionRecord?  @relation(fields: [transactionId], references: [id])
+  auditLogs           AuditLog[]
+
+  @@index([batchNumber, status])
+  @@index([buyerWallet])
+  @@index([purchaseSignature])
+  @@index([transactionId])
+}
+
+model TransactionRecord {
+  id                     String   @id @default(uuid())
+  purchaseSignature      String   @unique @map("signature")
+  wallet                 String
+  slot                   BigInt?
+  blockTime              DateTime?
+  cluster                String
+  amountLamports         BigInt
+  expectedLamports       BigInt
+  remainderLamports      BigInt   @default(0)
+  ticketCount            Int
+  transactionHash        String   @unique
+  ip                     String?
+  userAgent              String?
+  result                 String
+  createdAt              DateTime @default(now())
+  tickets                Ticket[]
+
+  @@index([wallet])
+  @@index([cluster, slot])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  action       String
+  ticketId     String?
+  batchId      String?
+  wallet       String?
+  ip           String?
+  signature    String?
+  metadataJson String?
+  createdAt    DateTime @default(now())
+  ticket       Ticket?  @relation(fields: [ticketId], references: [id])
+  batch        Batch?   @relation(fields: [batchId], references: [id])
+
+  @@index([action])
+  @@index([wallet])
+  @@index([createdAt])
+}
