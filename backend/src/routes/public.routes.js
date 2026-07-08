@@ -14,7 +14,15 @@ import { assertPublicKey } from '../services/solana.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { HttpError } from '../utils/httpError.js';
 import { serializeBigInt } from '../utils/serialize.js';
+import axios from 'axios'; // npm i axios se não tiver
 
+publicRouter.get('/preco', asyncHandler(async (_req, res) => {
+  const { data } = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=brl,usd');
+  res.json({ 
+    solBRL: data.solana.brl,
+    solUSD: data.solana.usd,
+    fonte: "CoinGecko"
+  
 export const publicRouter = Router();
 
 const purchaseSchema = z.object({
