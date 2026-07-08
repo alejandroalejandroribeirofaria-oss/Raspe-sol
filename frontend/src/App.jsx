@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Activity,
-  Coins,
-  Languages,
-  LockKeyhole,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Ticket,
-  Trophy,
-  Wallet
+  Activity, Coins, Languages, LockKeyhole, Search, ShieldCheck,
+  Sparkles, Ticket, Trophy, Wallet, Loader2
 } from 'lucide-react';
 import { api } from './api/client.js';
 import { languages, translations } from './i18n/translations.js';
@@ -17,23 +9,19 @@ import { useWallet } from './wallet/WalletContext.jsx';
 
 const FALLBACK_STATS = {
   open: { number: 1, status: 'OPEN' },
-  available: 5000,
-  sold: 0,
-  scratched: 0,
-  prized: 13,
-  history: []
+  available: 5000, sold: 0, scratched: 0, prized: 0, history: []
 };
 
-function sol(lamports) {
+const formatSol = (lamports) => {
   if (lamports === undefined || lamports === null) return '—';
   const value = Number(lamports) / 1_000_000_000;
   return `${value.toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL`;
-}
+};
 
-function short(value = '') {
+const short = (value = '') => {
   if (!value) return '—';
-  return value.length > 14 ? `${value.slice(0, 6)}…${value.slice(-6)}` : value;
-}
+  return value.length > 14? `${value.slice(0, 6)}…${value.slice(-6)}` : value;
+};
 
 function StatCard({ icon: Icon, label, value }) {
   return (
@@ -50,24 +38,26 @@ function TicketCard({ ticket, onScratch, busy, t }) {
   const won = revealed && Number(ticket.prizeLamports) > 0;
 
   return (
-    <article className={`ticket-card ${revealed ? 'revealed' : ''} ${won ? 'winner' : ''}`}>
+    <article className={`ticket-card ${revealed? 'revealed' : ''} ${won? 'winner' : ''}`}>
       <div className="ticket-topline">
         <span>{t.ticket}</span>
         <code>{short(ticket.id)}</code>
       </div>
       <div className="scratch-surface">
         <div className="scratch-glow" />
-        <strong>{revealed ? (won ? sol(ticket.prizeLamports) : ticket.loserMessage) : '████ ████'}</strong>
-        <small>{revealed ? t.prize : t.revealHint}</small>
+        <strong>
+          {revealed? (won? formatSol(ticket.prizeLamports) : (ticket.loserMessage || t.loser)) : '████ ████'}
+        </strong>
+        <small>{revealed? t.prize : t.revealHint}</small>
       </div>
       <dl>
-        <div><dt>{t.batch}</dt><dd>{ticket.batchNumber}</dd></div>
+        <div><dt>{t.batch}</dt><dd>#{ticket.batchNumber}</dd></div>
         <div><dt>{t.status}</dt><dd>{ticket.status}</dd></div>
-        <div><dt>{t.price}</dt><dd>{sol(ticket.ticketPriceLamports)}</dd></div>
+        <div><dt>{t.price}</dt><dd>{formatSol(ticket.ticketPriceLamports)}</dd></div>
       </dl>
       {!revealed && (
         <button className="secondary-action" disabled={busy} onClick={() => onScratch(ticket.id)}>
-          {busy ? '...' : t.scratch}
+          {busy? <Loader2 size={16} className="animate-spin"/> : t.scratch}
         </button>
       )}
     </article>
@@ -87,34 +77,35 @@ function AdminPanel({ t }) {
 
   const runSearch = async () => {
     setMessage('');
-    const data = await api.searchTickets(query, token);
-    setResults(data);
+    try {
+      const data = await api.searchTickets(query, token);
+      setResults(data);
+    } catch (e) { setMessage(e.message) }
   };
 
   const downloadReport = async () => {
-    const csv = await api.exportReport(token);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'raspe-sol-report.csv';
-    anchor.click();
-    URL.revokeObjectURL(url);
+    try {
+      const csv = await api.exportReport(token);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url; anchor.download = 'raspe-sol-report.csv'; anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { setMessage(e.message) }
   };
 
   const createBatch = async (mode) => {
-    const batch = mode === 'manual'
-      ? await api.createManualBatch(token)
-      : await api.createAutomaticBatch(token);
-    setMessage(`Lote ${batch.number} pronto.`);
+    try {
+      const batch = mode === 'manual'
+       ? await api.createManualBatch(token)
+        : await api.createAutomaticBatch(token);
+      setMessage(`Lote ${batch.number} pronto.`);
+    } catch (e) { setMessage(e.message) }
   };
 
   return (
     <section className="panel admin-panel">
-      <div className="section-title">
-        <LockKeyhole />
-        <h2>{t.admin}</h2>
-      </div>
+      <div className="section-title"><LockKeyhole /><h2>{t.admin}</h2></div>
       <label className="field">
         <span>{t.adminToken}</span>
         <input value={token} onChange={(event) => saveToken(event.target.value)} type="password" />
@@ -125,9 +116,9 @@ function AdminPanel({ t }) {
         <button onClick={downloadReport}>{t.exportReport}</button>
       </div>
       <div className="search-grid">
-        <input placeholder={t.uuid} value={query.uuid} onChange={(e) => setQuery({ ...query, uuid: e.target.value })} />
-        <input placeholder={t.wallet} value={query.wallet} onChange={(e) => setQuery({ ...query, wallet: e.target.value })} />
-        <input placeholder={t.batch} value={query.batch} onChange={(e) => setQuery({ ...query, batch: e.target.value })} />
+        <input placeholder={t.uuid} value={query.uuid} onChange={(e) => setQuery({...query, uuid: e.target.value })} />
+        <input placeholder={t.wallet} value={query.wallet} onChange={(e) => setQuery({...query, wallet: e.target.value })} />
+        <input placeholder={t.batch} value={query.batch} onChange={(e) => setQuery({...query, batch: e.target.value })} />
         <button onClick={runSearch}><Search size={16} /> {t.search}</button>
       </div>
       {message && <p className="notice">{message}</p>}
@@ -137,7 +128,7 @@ function AdminPanel({ t }) {
             <code>{short(ticket.id)}</code>
             <span>{short(ticket.buyerWallet)}</span>
             <span>{ticket.status}</span>
-            <strong>{sol(ticket.prizeLamports)}</strong>
+            <strong>{formatSol(ticket.prizeLamports)}</strong>
           </div>
         ))}
       </div>
@@ -153,17 +144,18 @@ export function App() {
   const [tickets, setTickets] = useState([]);
   const [busy, setBusy] = useState('');
   const [toast, setToast] = useState('');
-  const { publicKey, balance, connect, disconnect, payForTicket } = useWallet();
+
+  const { publicKey, publicKeyObject, balance, connect, disconnect, payForTicket } = useWallet();
   const t = translations[language];
 
   const loadPublicData = async () => {
     try {
       const [cfg, statData, leaders] = await Promise.all([
-        api.config(),
-        api.stats(),
-        api.leaderboard()
+        api.config().catch(() => null),
+        api.stats().catch(() => FALLBACK_STATS),
+        api.leaderboard().catch(() => [])
       ]);
-      setConfig(cfg);
+      if(cfg) setConfig(cfg);
       setStats(statData);
       setLeaderboard(leaders);
     } catch (error) {
@@ -180,17 +172,12 @@ export function App() {
     }
   };
 
-  useEffect(() => {
-    loadPublicData();
-  }, []);
-
-  useEffect(() => {
-    loadTickets();
-  }, [publicKey]);
+  useEffect(() => { loadPublicData(); }, []);
+  useEffect(() => { loadTickets(); }, [publicKey]);
 
   const activeConfig = useMemo(() => config || {
     ticketPriceLamports: '20000000',
-    treasuryWallet: '',
+    treasuryWallet: import.meta.env.VITE_TREASURY_WALLET || '',
     cluster: import.meta.env.VITE_DEFAULT_CLUSTER || 'devnet'
   }, [config]);
 
@@ -210,14 +197,14 @@ export function App() {
     if (!publicKey) return handleConnect();
     setBusy('buy');
     try {
-      if (!activeConfig.treasuryWallet) throw new Error('Treasury wallet is not configured');
+      if (!activeConfig.treasuryWallet) throw new Error(t.treasuryError);
       const signature = await payForTicket({
         treasuryWallet: activeConfig.treasuryWallet,
         ticketPriceLamports: activeConfig.ticketPriceLamports,
         cluster: activeConfig.cluster
       });
       const ticket = await api.purchase({ wallet: publicKey, signature, cluster: activeConfig.cluster });
-      setTickets((current) => [ticket, ...current]);
+      setTickets((current) => [ticket,...current]);
       await loadPublicData();
       setToast(`${t.ticket}: ${short(ticket.id)}`);
     } catch (error) {
@@ -231,7 +218,7 @@ export function App() {
     setBusy(ticketId);
     try {
       const ticket = await api.scratch(ticketId, publicKey);
-      setTickets((current) => current.map((item) => item.id === ticket.id ? ticket : item));
+      setTickets((current) => current.map((item) => item.id === ticket.id? ticket : item));
       await loadPublicData();
     } catch (error) {
       setToast(error.message);
@@ -257,11 +244,11 @@ export function App() {
                 {languages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
               </select>
             </label>
-            {publicKey ? (
+            {publicKey? (
               <button className="ghost" onClick={disconnect}>{short(publicKey)}</button>
             ) : (
               <button className="ghost" disabled={busy === 'connect'} onClick={handleConnect}>
-                <Wallet size={16} /> {t.connect}
+                <Wallet size={16} /> {busy === 'connect'? '...' : t.connect}
               </button>
             )}
           </div>
@@ -274,9 +261,9 @@ export function App() {
             <p className="subtitle">{t.subtitle}</p>
             <div className="hero-actions">
               <button className="primary-action" disabled={busy === 'buy'} onClick={buyTicket}>
-                <Sparkles size={18} /> {busy === 'buy' ? '...' : t.buy}
+                <Sparkles size={18} /> {busy === 'buy'? <Loader2 size={18} className="animate-spin"/> : t.buy}
               </button>
-              <span className="price-pill">{t.price}: {sol(activeConfig.ticketPriceLamports)}</span>
+              <span className="price-pill">{t.price}: {formatSol(activeConfig.ticketPriceLamports)}</span>
             </div>
           </div>
           <div className="lot-card">
@@ -302,10 +289,11 @@ export function App() {
           <div className="section-title">
             <Ticket />
             <h2>{t.history}</h2>
-            {publicKey && <span>{t.balance}: {balance?.toFixed(4) ?? '—'} SOL</span>}
+            {publicKey && <span>{t.balance}: {balance?.toFixed(4)?? '—'} SOL</span>}
           </div>
           <div className="tickets-grid">
-            {tickets.length === 0 && <p className="empty-state">{t.noTickets}</p>}
+            {!publicKey && <p className="empty-state">{t.connectWallet}</p>}
+            {publicKey && tickets.length === 0 && <p className="empty-state">{t.noTickets}</p>}
             {tickets.map((ticket) => (
               <TicketCard
                 key={ticket.id}
@@ -328,7 +316,7 @@ export function App() {
             <div className="leader-row" key={ticket.id}>
               <span>#{index + 1}</span>
               <code>{short(ticket.buyerWallet)}</code>
-              <strong>{sol(ticket.prizeLamports)}</strong>
+              <strong>{formatSol(ticket.prizeLamports)}</strong>
             </div>
           ))}
         </aside>
@@ -343,5 +331,4 @@ export function App() {
       )}
     </main>
   );
-}
-
+                                                                                    }
