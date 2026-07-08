@@ -47,7 +47,7 @@ publicRouter.get('/preco', asyncHandler(async (_req, res) => {
 publicRouter.get('/batches', asyncHandler(async (_req, res) => {
   const batches = await prisma.batch.findMany({ 
     orderBy: { number: 'desc' },
-    include: { _count: { select: { tickets: true } }
+    include: { _count: { select: { tickets: true } } } // <- adicionei 1 } 
   });
   res.json(serializeBigInt(batches));
 }));
