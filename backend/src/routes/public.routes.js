@@ -16,7 +16,7 @@ import { HttpError } from '../utils/httpError.js';
 import { serializeBigInt } from '../utils/serialize.js';
 import axios from 'axios';
 
-export const publicRouter = Router(); // <- TEM QUE VIR PRIMEIRO
+export const publicRouter = Router();
 
 const purchaseSchema = z.object({
   wallet: z.string().min(32),
@@ -34,10 +34,19 @@ const createBatchSchema = z.object({
 });
 
 // NOVA ROTA PRECO
+publicRouter.get('/preco', asyncHandler(async (_req, res) => {
+  const { data } = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=brl,usd');
+  res.json({ 
+    solBRL: data.solana.brl,
+    solUSD: data.solana.usd,
+    fonte: "CoinGecko"
+  });
+}));
+
 publicRouter.get('/batches', asyncHandler(async (_req, res) => {
   const batches = await prisma.batch.findMany({ 
     orderBy: { number: 'desc' },
-    include: { _count: { select: { tickets: true } } } // <- adicionei 1 } 
+    include: { _count: { select: { tickets: true } }
   });
   res.json(serializeBigInt(batches));
 }));
@@ -45,7 +54,6 @@ publicRouter.get('/batches', asyncHandler(async (_req, res) => {
 publicRouter.post('/batches', asyncHandler(async (req, res) => {
   const parsed = createBatchSchema.safeParse(req.body);
   if (!parsed.success) throw new HttpError(400, 'Invalid batch payload', parsed.error.flatten());
-
   const batch = await prisma.batch.create({
     data: { number: parsed.data.number, status: 'OPEN' }
   });
@@ -57,7 +65,6 @@ publicRouter.post('/batches/ensure-open', asyncHandler(async (_req, res) => {
   res.json(serializeBigInt(batch));
 }));
 
-// SUAS ROTAS ANTIGAS
 publicRouter.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'raspe-sol-api' });
 });
