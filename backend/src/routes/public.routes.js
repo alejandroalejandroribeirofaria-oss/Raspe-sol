@@ -34,16 +34,6 @@ const createBatchSchema = z.object({
 });
 
 // NOVA ROTA PRECO
-publicRouter.get('/preco', asyncHandler(async (_req, res) => {
-  const { data } = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=brl,usd');
-  res.json({ 
-    solBRL: data.solana.brl,
-    solUSD: data.solana.usd,
-    fonte: "CoinGecko"
-  }); // <- fechei aqui
-}));
-
-// ROTAS QUE FALTAVAM
 publicRouter.get('/batches', asyncHandler(async (_req, res) => {
   const batches = await prisma.batch.findMany({ 
     orderBy: { number: 'desc' },
