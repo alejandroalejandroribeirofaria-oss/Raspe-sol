@@ -1,5 +1,7 @@
 {
   "name": "raspe-sol",
   "private": true,
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "description": "Raspe SOL project",
+  "license": "MIT"
 }
