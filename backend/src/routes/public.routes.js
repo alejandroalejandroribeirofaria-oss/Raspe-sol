@@ -33,7 +33,7 @@ const createBatchSchema = z.object({
   number: z.coerce.number().int().positive()
 });
 
-// NOVA ROTA PRECO
+// ROTA PRECO
 publicRouter.get('/preco', asyncHandler(async (_req, res) => {
   const { data } = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=brl,usd');
   res.json({ 
@@ -46,7 +46,7 @@ publicRouter.get('/preco', asyncHandler(async (_req, res) => {
 publicRouter.get('/batches', asyncHandler(async (_req, res) => {
   const batches = await prisma.batch.findMany({ 
     orderBy: { number: 'desc' },
-    include: { _count: { select: { tickets: true } }
+    include: { _count: { select: { tickets: true } } }
   });
   res.json(serializeBigInt(batches));
 }));
@@ -71,13 +71,13 @@ publicRouter.get('/health', (_req, res) => {
 
 publicRouter.get('/config', (_req, res) => {
   res.json({
-      ticketPriceLamports: TICKET_PRICE_LAMPORTS.toString(),
-      treasuryWallet: env.TREASURY_WALLET,
-      cluster: env.SOLANA_CLUSTER,
-      commitment: env.SOLANA_COMMITMENT,
-      requireChainConfirmation: env.REQUIRE_CHAIN_CONFIRMATION,
-      maxTicketsPerPurchase: env.MAX_TICKETS_PER_PURCHASE,
-      allowOverpayment: env.ALLOW_OVERPAYMENT,
-      ignoreRemainder: env.IGNORE_REMAINDER
+    ticketPriceLamports: TICKET_PRICE_LAMPORTS.toString(),
+    treasuryWallet: env.TREASURY_WALLET,
+    cluster: env.SOLANA_CLUSTER,
+    commitment: env.SOLANA_COMMITMENT,
+    requireChainConfirmation: env.REQUIRE_CHAIN_CONFIRMATION,
+    maxTicketsPerPurchase: env.MAX_TICKETS_PER_PURCHASE,
+    allowOverpayment: env.ALLOW_OVERPAYMENT,
+    ignoreRemainder: env.IGNORE_REMAINDER
   });
 });
