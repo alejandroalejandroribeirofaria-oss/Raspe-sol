@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { env } from '../config/env.js';
+import { prisma } from '../config/prisma.js'; // <- adiciona isso
 import { TICKET_PRICE_LAMPORTS } from '../constants.js';
-import { getBatchStats } from '../services/batch.service.js';
+import { getBatchStats, ensureOpenBatch } from '../services/batch.service.js'; // <- adiciona ensureOpenBatch
 import {
   getLeaderboard,
   getWalletTickets,
@@ -27,6 +28,35 @@ const scratchSchema = z.object({
   wallet: z.string().min(32)
 });
 
+const createBatchSchema = z.object({
+  number: z.coerce.number().int().positive()
+});
+
+// ROTAS QUE FALTAVAM
+publicRouter.get('/batches', asyncHandler(async (_req, res) => {
+  const batches = await prisma.batch.findMany({ 
+    orderBy: { number: 'desc' },
+    include: { _count: { select: { tickets: true } } }
+  });
+  res.json(serializeBigInt(batches));
+}));
+
+publicRouter.post('/batches', asyncHandler(async (req, res) => {
+  const parsed = createBatchSchema.safeParse(req.body);
+  if (!parsed.success) throw new HttpError(400, 'Invalid batch payload', parsed.error.flatten());
+
+  const batch = await prisma.batch.create({
+    data: { number: parsed.data.number, status: 'OPEN' }
+  });
+  res.status(201).json(serializeBigInt(batch));
+}));
+
+publicRouter.post('/batches/ensure-open', asyncHandler(async (_req, res) => {
+  const batch = await ensureOpenBatch();
+  res.json(serializeBigInt(batch));
+}));
+
+// SUAS ROTAS ANTIGAS
 publicRouter.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'raspe-sol-api' });
 });
@@ -44,46 +74,4 @@ publicRouter.get('/config', (_req, res) => {
   });
 });
 
-publicRouter.get('/stats', asyncHandler(async (_req, res) => {
-  res.json(serializeBigInt(await getBatchStats()));
-}));
-
-publicRouter.get('/leaderboard', asyncHandler(async (_req, res) => {
-  res.json(serializeBigInt(await getLeaderboard()));
-}));
-
-publicRouter.get('/tickets', asyncHandler(async (req, res) => {
-  const wallet = assertPublicKey(req.query.wallet, 'wallet');
-  res.json(serializeBigInt(await getWalletTickets(wallet)));
-}));
-
-const purchaseHandler = asyncHandler(async (req, res) => {
-  const parsed = purchaseSchema.safeParse(req.body);
-  if (!parsed.success) throw new HttpError(400, 'Invalid purchase payload', parsed.error.flatten());
-
-  const ticket = await purchaseTicket({
-    ...parsed.data,
-    ip: req.ip,
-    userAgent: req.get('user-agent')
-  });
-
-  res.status(201).json(serializeBigInt(ticket));
-});
-
-publicRouter.post('/purchase', purchaseHandler);
-publicRouter.post('/tickets/purchase', purchaseHandler);
-
-publicRouter.post('/tickets/:id/scratch', asyncHandler(async (req, res) => {
-  const parsed = scratchSchema.safeParse(req.body);
-  if (!parsed.success) throw new HttpError(400, 'Invalid scratch payload', parsed.error.flatten());
-
-  const wallet = assertPublicKey(parsed.data.wallet, 'wallet');
-  const ticket = await scratchTicket({
-    ticketId: req.params.id,
-    wallet,
-    ip: req.ip
-  });
-
-  res.json(serializeBigInt(ticket));
-}));
-
+publicRouter
