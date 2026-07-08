@@ -6,7 +6,9 @@ import { ensureOpenBatch } from './services/batch.service.js';
 const app = createApp();
 
 async function main() {
-  await ensureOpenBatch();
+  // Cria batch 1 se não existir
+  await ensureOpenBatch(); 
+  
   app.listen(env.PORT, '0.0.0.0', () => {
     console.log(`Raspe SOL API listening on port ${env.PORT}`);
   });
@@ -27,4 +29,3 @@ main().catch(async (error) => {
   await prisma.$disconnect();
   process.exit(1);
 });
-
