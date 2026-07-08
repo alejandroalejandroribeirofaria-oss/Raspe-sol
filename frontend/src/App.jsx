@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Activity, Coins, Languages, LockKeyhole, Search, ShieldCheck,
-  Sparkles, Ticket, Trophy, Wallet, Loader2
+  Activity, Coins, Languages, Search, ShieldCheck,
+  Sparkles, Ticket, Trophy, Loader2, LockKeyhole // <- Adicionei LockKeyhole
 } from 'lucide-react';
 import { api } from './api/client.js';
 import { languages, translations } from './i18n/translations.js';
 import { useWallet } from './wallet/WalletContext.jsx';
+
+import ConnectButton from './components/ConnectButton';
 
 const FALLBACK_STATS = {
   open: { number: 1, status: 'OPEN' },
@@ -20,7 +22,7 @@ const formatSol = (lamports) => {
 
 const short = (value = '') => {
   if (!value) return '—';
-  return value.length > 14? `${value.slice(0, 6)}…${value.slice(-6)}` : value;
+  return value.length > 14? `${value.slice(0, 6)}…${value.slice(-6)}` : value; // <- Corrigido
 };
 
 function StatCard({ icon: Icon, label, value }) {
@@ -46,7 +48,9 @@ function TicketCard({ ticket, onScratch, busy, t }) {
       <div className="scratch-surface">
         <div className="scratch-glow" />
         <strong>
-          {revealed? (won? formatSol(ticket.prizeLamports) : (ticket.loserMessage || t.loser)) : '████ ████'}
+          {revealed
+           ? (won? formatSol(ticket.prizeLamports) : (ticket.loserMessage || t.loser))
+            : '████ ████'}
         </strong>
         <small>{revealed? t.prize : t.revealHint}</small>
       </div>
@@ -57,7 +61,7 @@ function TicketCard({ ticket, onScratch, busy, t }) {
       </dl>
       {!revealed && (
         <button className="secondary-action" disabled={busy} onClick={() => onScratch(ticket.id)}>
-          {busy? <Loader2 size={16} className="animate-spin"/> : t.scratch}
+          {busy? <Loader2 size={16} className="animate-spin" /> : t.scratch}
         </button>
       )}
     </article>
@@ -80,7 +84,7 @@ function AdminPanel({ t }) {
     try {
       const data = await api.searchTickets(query, token);
       setResults(data);
-    } catch (e) { setMessage(e.message) }
+    } catch (e) { setMessage(e.message); }
   };
 
   const downloadReport = async () => {
@@ -89,9 +93,11 @@ function AdminPanel({ t }) {
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
-      anchor.href = url; anchor.download = 'raspe-sol-report.csv'; anchor.click();
+      anchor.href = url;
+      anchor.download = 'raspe-sol-report.csv';
+      anchor.click();
       URL.revokeObjectURL(url);
-    } catch (e) { setMessage(e.message) }
+    } catch (e) { setMessage(e.message); }
   };
 
   const createBatch = async (mode) => {
@@ -100,7 +106,7 @@ function AdminPanel({ t }) {
        ? await api.createManualBatch(token)
         : await api.createAutomaticBatch(token);
       setMessage(`Lote ${batch.number} pronto.`);
-    } catch (e) { setMessage(e.message) }
+    } catch (e) { setMessage(e.message); }
   };
 
   return (
@@ -108,7 +114,7 @@ function AdminPanel({ t }) {
       <div className="section-title"><LockKeyhole /><h2>{t.admin}</h2></div>
       <label className="field">
         <span>{t.adminToken}</span>
-        <input value={token} onChange={(event) => saveToken(event.target.value)} type="password" />
+        <input value={token} onChange={(e) => saveToken(e.target.value)} type="password" />
       </label>
       <div className="admin-actions">
         <button onClick={() => createBatch('manual')}>{t.manualBatch}</button>
@@ -144,9 +150,21 @@ export function App() {
   const [tickets, setTickets] = useState([]);
   const [busy, setBusy] = useState('');
   const [toast, setToast] = useState('');
+  const [solPrice, setSolPrice] = useState(null);
+  const [error, setError] = useState('');
 
-  const { publicKey, publicKeyObject, balance, connect, disconnect, payForTicket } = useWallet();
+  const { publicKey, balance, connect, disconnect, payForTicket } = useWallet();
   const t = translations[language];
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+  // Fetch SOL price
+  useEffect(() => {
+    fetch(`${API_URL}/price`)
+     .then(res => res.json())
+     .then(data => setSolPrice(data.price))
+     .catch(() => setError("Erro ao buscar preço do SOL"));
+  }, [API_URL]);
 
   const loadPublicData = async () => {
     try {
@@ -155,7 +173,7 @@ export function App() {
         api.stats().catch(() => FALLBACK_STATS),
         api.leaderboard().catch(() => [])
       ]);
-      if(cfg) setConfig(cfg);
+      if (cfg) setConfig(cfg);
       setStats(statData);
       setLeaderboard(leaders);
     } catch (error) {
@@ -231,51 +249,28 @@ export function App() {
     <main className="app-shell">
       <div className="orb orb-a" />
       <div className="orb orb-b" />
-      <header className="hero">
-        <nav>
-          <div className="brand">
-            <span className="brand-mark">SOL</span>
-            <span>Raspe SOL</span>
-          </div>
-          <div className="toolbar">
-            <label className="language-picker">
-              <Languages size={16} />
-              <select value={language} onChange={(event) => setLanguage(event.target.value)}>
-                {languages.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
-              </select>
-            </label>
-            {publicKey? (
-              <button className="ghost" onClick={disconnect}>{short(publicKey)}</button>
-            ) : (
-              <button className="ghost" disabled={busy === 'connect'} onClick={handleConnect}>
-                <Wallet size={16} /> {busy === 'connect'? '...' : t.connect}
-              </button>
-            )}
-          </div>
-        </nav>
 
-        <section className="hero-grid">
-          <div>
-            <p className="eyebrow"><ShieldCheck size={16} /> HMAC SHA-256 · Solana · Prisma</p>
-            <h1>{t.title}</h1>
-            <p className="subtitle">{t.subtitle}</p>
-            <div className="hero-actions">
-              <button className="primary-action" disabled={busy === 'buy'} onClick={buyTicket}>
-                <Sparkles size={18} /> {busy === 'buy'? <Loader2 size={18} className="animate-spin"/> : t.buy}
-              </button>
-              <span className="price-pill">{t.price}: {formatSol(activeConfig.ticketPriceLamports)}</span>
-            </div>
-          </div>
-          <div className="lot-card">
-            <span>{t.batch}</span>
-            <strong>#{stats.open?.number || 1}</strong>
-            <p>{stats.open?.status || 'OPEN'}</p>
-            <div className="lot-ring">
-              <span>{Math.round((stats.available / 5000) * 100)}%</span>
-            </div>
-          </div>
-        </section>
+      <header style={{display: 'flex', justifyContent: 'space-between', padding: '1rem'}}>
+        <h1>Raspe SOL</h1>
+        <ConnectButton />
       </header>
+
+      <section className="hero">
+        <p className="eyebrow"><ShieldCheck size={16} /> HMAC SHA-256 · Solana · Prisma</p>
+        <h1>{t.title}</h1>
+        <p className="subtitle">{t.subtitle}</p>
+        <div className="hero-actions">
+          <button className="primary-action" disabled={busy === 'buy'} onClick={buyTicket}>
+            <Sparkles size={18} />
+            {busy === 'buy'? <Loader2 size={18} className="animate-spin" /> : t.buy}
+          </button>
+          <span className="price-pill">
+            {t.price}: {formatSol(activeConfig.ticketPriceLamports)}
+            {solPrice && ` (~R$ ${solPrice.toFixed(2)})`} {/* <- Mostra preço em R$ */}
+          </span>
+        </div>
+        {error && <p style={{color: 'red'}}>{error}</p>}
+      </section>
 
       <section className="stats-grid">
         <StatCard icon={Ticket} label={t.remaining} value={stats.available} />
@@ -331,4 +326,4 @@ export function App() {
       )}
     </main>
   );
-                                                                                    }
+}
