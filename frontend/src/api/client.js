@@ -1,19 +1,14 @@
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-async function request(path, { method = 'GET', body, adminToken } = {}) {
-  const headers = {
+function authHeaders(token) {
+  return {
     'Content-Type': 'application/json',
+    'x-admin-token': token,
   };
+}
 
-  if (adminToken) {
-    headers['x-admin-token'] = adminToken; // <- Aqui tava faltando aplicar
-  }
-
-  const response = await fetch(`${API_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined
-  });
+async function request(url, options = {}) {
+  const response = await fetch(url, options);
 
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
@@ -21,36 +16,62 @@ async function request(path, { method = 'GET', body, adminToken } = {}) {
   }
 
   const contentType = response.headers.get('content-type') || '';
-  if (contentType.includes('text/csv')) return response.text();
+  if (contentType.includes('text/csv')) {
+    return response.text();
+  }
   return response.json();
 }
 
 export const api = {
-  config: () => request('/api/config'),
-  stats: () => request('/api/stats'),
-  leaderboard: () => request('/api/leaderboard'),
-  tickets: (wallet) => request(`/api/tickets?wallet=${encodeURIComponent(wallet)}`),
-  purchase: (payload) => request('/api/tickets/purchase', { method: 'POST', body: payload }),
-  scratch: (ticketId, wallet) => request(`/api/tickets/${ticketId}/scratch`, {
-    method: 'POST',
-    body: { wallet }
-  }),
-  adminStats: (adminToken) => request('/api/admin/stats', { adminToken }),
-  createManualBatch: (adminToken) => request('/api/admin/batches/manual', {
-    method: 'POST',
-    adminToken
-  }),
-  createAutomaticBatch: (adminToken) => request('/api/admin/batches/auto', {
-    method: 'POST',
-    adminToken
-  }),
-  searchTickets: (query, adminToken) => {
-    const params = new URLSearchParams(Object.entries(query).filter(([, value]) => value != null && value !== ''));
-    return request(`/api/admin/tickets/search?${params.toString()}`, { adminToken });
+  // Public endpoints
+  config: () => request(`${API_URL}/api/config`),
+  stats: () => request(`${API_URL}/api/stats`),
+  leaderboard: () => request(`${API_URL}/api/leaderboard`),
+
+  tickets: (wallet) => 
+    request(`${API_URL}/api/tickets/${encodeURIComponent(wallet)}`), // <-- só deixa essa
+
+  purchase: (body) => 
+    request(`${API_URL}/api/tickets/buy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  scratch: (id, wallet) => 
+    request(`${API_URL}/api/tickets/${id}/scratch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet }),
+    }),
+
+  // Admin endpoints
+  searchTickets: (query, token) => {
+    const params = new URLSearchParams(
+      Object.entries(query).filter(([, value]) => value != null && value !== '')
+    ).toString();
+
+    return request(`${API_URL}/api/tickets/search?${params}`, {
+      headers: authHeaders(token),
+    });
   },
-  markPaid: (uuid, adminToken) => request(`/api/admin/tickets/${uuid}/pay`, {
-    method: 'POST',
-    adminToken
-  }),
-  exportReport: (adminToken) => request('/api/admin/report.csv', { adminToken })
+
+  createManualBatch: (token) => 
+    request(`${API_URL}/api/admin/create-batch`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ type: 'manual' }),
+    }),
+
+  createAutomaticBatch: (token) => 
+    request(`${API_URL}/api/admin/create-batch`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ type: 'auto' }),
+    }),
+
+  exportReport: (token) => 
+    request(`${API_URL}/api/admin/report.csv`, {
+      headers: authHeaders(token),
+    }),
 };
