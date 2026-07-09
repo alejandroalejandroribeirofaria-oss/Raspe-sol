@@ -48,7 +48,7 @@ function TicketCard({ ticket, onScratch, busy, t }) {
         <div className="scratch-glow" />
         <strong>
           {revealed
-           ? (won? formatSol(ticket.prizeLamports) : (ticket.loserMessage || t.loser))
+          ? (won? formatSol(ticket.prizeLamports) : (ticket.loserMessage || t.loser))
             : '████ ████'}
         </strong>
         <small>{revealed? t.prize : t.revealHint}</small>
@@ -102,7 +102,7 @@ function AdminPanel({ t }) {
   const createBatch = async (mode) => {
     try {
       const batch = mode === 'manual'
-       ? await api.createManualBatch(token)
+      ? await api.createManualBatch(token)
         : await api.createAutomaticBatch(token);
       setMessage(`Lote ${batch.number} pronto.`);
     } catch (e) { setMessage(e.message); }
@@ -142,7 +142,6 @@ function AdminPanel({ t }) {
 }
 
 export function App() {
-  // 1. CORRIGIDO: Carrega idioma do localStorage
   const [language, setLanguage] = useState(() => localStorage.getItem('raspe_lang') || 'pt');
   const [config, setConfig] = useState(null);
   const [stats, setStats] = useState(FALLBACK_STATS);
@@ -156,14 +155,13 @@ export function App() {
   const { publicKey, balance, connect, payForTicket } = useWallet();
   const t = translations[language];
 
-  // 2. CORRIGIDO: Remove /api daqui porque o client.js já adiciona
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
   useEffect(() => {
     fetch(`${API_URL}/api/price`)
-     .then(res => res.json())
-     .then(data => setSolPrice(data.price))
-     .catch(() => setError("Erro ao buscar preço do SOL"));
+    .then(res => res.json())
+    .then(data => setSolPrice(data.price))
+    .catch(() => setError("Erro ao buscar preço do SOL"));
   }, [API_URL]);
 
   const loadPublicData = async () => {
@@ -265,9 +263,9 @@ export function App() {
             onChange={handleLanguageChange}
             className="bg-transparent border border-white/20 rounded px-2 py-1"
           >
-            {Object.keys(languages).map(key => (
-              <option key={key} value={key} style={{background: '#111', color: '#fff'}}>
-                {languages[key]}
+            {languages.map(lang => (
+              <option key={lang.code} value={lang.code} style={{background: '#111', color: '#fff'}}>
+                {lang.label}
               </option>
             ))}
           </select>
@@ -346,4 +344,4 @@ export function App() {
       )}
     </main>
   );
-}
+        }
