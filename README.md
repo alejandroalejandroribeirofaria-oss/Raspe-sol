@@ -125,8 +125,8 @@ Official values for this deployment:
 
 | Setting | Value |
 |---|---|
-| API base URL | `https://raspe-sol.onrender.com` |
-| Treasury wallet | `BFxAnfdAreXaKEvdeG4xQ7zbxE129ex2bimSc8cDnLhZ` |
+| API base URL | `https://raspe-sol#xxxx??????.com` |
+| Treasury wallet | `BFxAnfdAxxxxxx????????????E129ex2bimSc8cDnLhZ` |
 | Cluster | `mainnet-beta` |
 | Ticket price | `0.01 SOL` (`10,000,000` lamports) |
 | Lot size | `20,000` tickets, auto-creates next lot at `1,000` remaining |
@@ -153,7 +153,7 @@ into your host's environment settings (don't commit a real `.env`).
    drop payment verification requests under real load.
 
 3. **Set `CORS_ORIGIN`** to the frontend's actual deployed origin. It isn't
-   `https://raspe-sol.onrender.com` unless the frontend is also served from
+   `https://raspe-sol.#xxx?????` unless the frontend is also served from
    that exact domain — check `backend/.env.production.example` for the
    placeholder to replace.
 
@@ -203,6 +203,7 @@ export const PRIZES = [
   { label: '1 SOL',    sol: 1,    count: 1 },
   { label: '2 SOL',    sol: 2,    count: 1 },
   { label: '5 SOL',    sol: 5,    count: 1 },
+   { label: '1000 usdt',    usdt: 1000,    count: 1 },
 ];
 ```
 
