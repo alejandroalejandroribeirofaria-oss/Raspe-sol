@@ -5,8 +5,8 @@ import { api } from './api';
 import LanguageSwitch from './components/LanguageSwitch';
 import BuyFlow from './components/BuyFlow';
 import VolumeControl from './components/VolumeControl';
-import WalletButton from './wallet/WalletButton.jsx';
-import WalletModal from './wallet/WalletModal.jsx';
+// import WalletButton from './wallet/WalletButton.jsx'; <- comenta
+// import WalletModal from './wallet/WalletModal.jsx'; <- comenta
 import ChatToggleButton from './chat/ChatToggleButton.jsx';
 import ChatWindow from './chat/ChatWindow.jsx';
 import MyTicketsPanel from './tickets/MyTicketsPanel.jsx';
@@ -32,12 +32,12 @@ export default function App() {
         </div>
         <div className="topbar__right">
           <button className="tickets-toggle" onClick={openTickets} aria-label={t('myTickets')}>
-            ðŸŽŸ
+            🎟️
           </button>
           <ChatToggleButton />
           <VolumeControl />
           <LanguageSwitch />
-          <WalletButton />
+          {/* <WalletButton /> */}  {/* <- comenta */}
         </div>
       </header>
 
@@ -55,9 +55,9 @@ export default function App() {
         <p>{t('footerNote')}</p>
       </footer>
 
-      <WalletModal />
+      {/* <WalletModal /> */}  {/* <- comenta */}
       <ChatWindow />
       <MyTicketsPanel open={ticketsOpen} onClose={() => setTicketsOpen(false)} />
     </div>
   );
-}
+        }
