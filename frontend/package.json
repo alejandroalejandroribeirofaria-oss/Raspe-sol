@@ -19,5 +19,13 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
     "vite": "^5.4.6"
+    ,
+    "overrides": {
+    "@reown/appkit": "npm:empty-npm-package@1.0.0",
+    "@reown/appkit-adapter-solana": "npm:empty-npm-package@1.0.0",
+    "@walletconnect/modal": "npm:empty-npm-package@1.0.0",
+    "@walletconnect/utils": "npm:empty-npm-package@1.0.0"
+  }
+     
   }
 }
