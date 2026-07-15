@@ -6,7 +6,7 @@ import {
   useConnection,
   useWallet as useAdapterWallet,
 } from '@solana/wallet-adapter-react';
-import { WalletReadyState } from '@solana/wallet-adapter-base'; // <- ADICIONA ESSA LINHA
+import { WalletReadyState } from '@solana/wallet-adapter-base';
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
@@ -17,6 +17,7 @@ import {
   TrustWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { WalletContext } from './WalletContext.jsx';
+
 const RPC_URL = import.meta.env.VITE_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 
 const buildAdapters = () => [
@@ -34,7 +35,8 @@ const NETWORK_POLL_MS = 20_000;
 
 function WalletBridge({ children }) {
   const { connection } = useConnection();
-  const { wallet, wallets, publicKey, connected, connecting, disconnecting, select, connect, disconnect, sendTransaction } = useAdapterWallet();
+  const walletHook = useAdapterWallet();
+  const { wallet, wallets, publicKey, connected, connecting, disconnecting, select, connect, disconnect, sendTransaction } = walletHook;
 
   const [balanceLamports, setBalanceLamports] = useState(null);
   const [status, setStatus] = useState('idle');
@@ -45,6 +47,22 @@ function WalletBridge({ children }) {
   const pendingConnectRef = useRef(null);
 
   const address = publicKey?.toBase58()?? null;
+
+  const handleWalletError = useCallback((error) => {
+    console.error('Wallet error:', error);
+    const name = error?.name || '';
+
+    if (name === 'WalletNotReadyError') {
+      setStatus('not_installed');
+      setErrorMessage('Wallet not installed');
+    } else if (name === 'WalletConnectionError' || /locked/i.test(error?.message || '')) {
+      setStatus('locked');
+      setErrorMessage('walletLocked');
+    } else {
+      setStatus('error');
+      setErrorMessage(error?.message || 'CONNECT_FAILED');
+    }
+  }, []);
 
   const refreshBalance = useCallback(async () => {
     if (!publicKey) return setBalanceLamports(null);
@@ -106,19 +124,10 @@ function WalletBridge({ children }) {
         pending.resolve();
       })
      .catch((err) => {
-        const name = err?.name || '';
-        if (name === 'WalletNotReadyError') {
-          setStatus('not_installed');
-        } else if (name === 'WalletConnectionError' || /locked/i.test(err?.message || '')) {
-          setStatus('locked');
-          setErrorMessage('walletLocked');
-        } else {
-          setStatus('error');
-          setErrorMessage(err?.message || 'CONNECT_FAILED');
-        }
+        handleWalletError(err);
         pending.reject(err);
       });
-  }, [wallet, connect]);
+  }, [wallet, connect, handleWalletError]);
 
   const connectWallet = useCallback(
     (walletName) => {
@@ -126,25 +135,14 @@ function WalletBridge({ children }) {
       if (wallet?.adapter?.name === walletName) {
         return connect()
          .then(() => setModalOpen(false))
-         .catch((err) => {
-            const name = err?.name || '';
-            if (name === 'WalletNotReadyError') setStatus('not_installed');
-            else if (name === 'WalletConnectionError' || /locked/i.test(err?.message || '')) {
-              setStatus('locked');
-              setErrorMessage('walletLocked');
-            } else {
-              setStatus('error');
-              setErrorMessage(err?.message || 'CONNECT_FAILED');
-            }
-            throw err;
-          });
+         .catch(handleWalletError);
       }
       return new Promise((resolve, reject) => {
         pendingConnectRef.current = { name: walletName, resolve, reject };
         select(walletName);
       });
     },
-    [select, connect, wallet]
+    [select, connect, wallet, handleWalletError]
   );
 
   const disconnectWallet = useCallback(async () => {
@@ -194,22 +192,9 @@ function WalletBridge({ children }) {
       connection,
     }),
     [
-      address,
-      publicKey,
-      balanceLamports,
-      status,
-      errorMessage,
-      connecting,
-      disconnecting,
-      networkMismatch,
-      wallet,
-      wallets,
-      modalOpen,
-      connectWallet,
-      disconnectWallet,
-      refreshBalance,
-      sendPayment,
-      connection,
+      address, publicKey, balanceLamports, status, errorMessage, connecting,
+      disconnecting, networkMismatch, wallet, wallets, modalOpen,
+      connectWallet, disconnectWallet, refreshBalance, sendPayment, connection,
     ]
   );
 
@@ -220,9 +205,13 @@ export function WalletProvider({ children }) {
   const adapters = useMemo(buildAdapters, []);
   return (
     <ConnectionProvider endpoint={RPC_URL}>
-      <SolanaWalletProvider wallets={adapters} autoConnect onError={() => {}}>
+      <SolanaWalletProvider
+        wallets={adapters}
+        autoConnect={false}
+        onError={(error) => console.error('Wallet error:', error)}
+      >
         <WalletBridge>{children}</WalletBridge>
       </SolanaWalletProvider>
     </ConnectionProvider>
   );
-    }
+            }
