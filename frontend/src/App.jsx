@@ -7,7 +7,7 @@ import BuyFlow from './components/BuyFlow';
 import VolumeControl from './components/VolumeControl';
 import WalletButton from './wallet/WalletButton.jsx';
 import WalletModal from './wallet/WalletModal.jsx';
-import ChatToggleButton from './chat/ChatToggleButton.jsx';
+import ChatToggleButton from './components/ChatToggleButton.jsx';
 import ChatWindow from './chat/ChatWindow.jsx';
 import MyTicketsPanel from './tickets/MyTicketsPanel.jsx';
 import PendingPrizeBanner from './tickets/PendingPrizeBanner.jsx';
@@ -15,14 +15,40 @@ import PendingPrizeBanner from './tickets/PendingPrizeBanner.jsx';
 export default function App() {
   const { t } = useI18n();
   const [config, setConfig] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [ticketsOpen, setTicketsOpen] = useState(false);
+  
   useAudioBoot();
 
   useEffect(() => {
-    api.getConfig().then(setConfig).catch(() => setConfig({ ticketPriceSol: 0.02 }));
+    let isMounted = true;
+    
+    async function loadConfig() {
+      try {
+        const data = await api.getConfig();
+        if (isMounted) setConfig(data);
+      } catch (error) {
+        console.error('Failed to load config:', error);
+        if (isMounted) setConfig({ ticketPriceSol: 0.02 }); // fallback
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    
+    loadConfig();
+    
+    return () => { isMounted = false; };
   }, []);
 
   const openTickets = () => setTicketsOpen(true);
+
+  if (loading) {
+    return (
+      <div className="page" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh'}}>
+        <h2>Carregando...</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="page">
@@ -32,7 +58,7 @@ export default function App() {
         </div>
         <div className="topbar__right">
           <button className="tickets-toggle" onClick={openTickets} aria-label={t('myTickets')}>
-            ðŸŽŸ
+            🎟️
           </button>
           <ChatToggleButton />
           <VolumeControl />
@@ -61,4 +87,3 @@ export default function App() {
     </div>
   );
 }
-
