@@ -103,6 +103,7 @@ export default function AdminDashboard() {
 
       {error && <p className="admin-error">{error}</p>}
 
+      {/* Estatísticas Gerais */}
       {data?.stats && (
         <section className="admin-card">
           <h2>Estatísticas Gerais</h2>
@@ -117,6 +118,7 @@ export default function AdminDashboard() {
         </section>
       )}
 
+      {/* Lote Atual */}
       {data && (
         <>
           <section className="admin-card">
@@ -133,19 +135,20 @@ export default function AdminDashboard() {
             ) : (
               <p>Nenhum lote encontrado.</p>
             )}
+
             <p className="admin-note">
-              Próximo lote automático: <strong>#{data.proximoLote}</strong> (criado quando o lote atual atingir o
-              limite mínimo configurado)
+              Próximo lote automático: <strong>#{data.proximoLote}</strong>
             </p>
             <p className="admin-note">
-              Total de tickets disponíveis agora (todos os lotes vendendo simultaneamente):{' '}
+              Total de tickets disponíveis agora:{' '}
               <strong>{data.totalTicketsDisponiveisAgora}</strong>
-              {data.lotesVendendoSimultaneamente.length > 1 && (
+              {data.lotesVendendoSimultaneamente?.length > 1 && (
                 <> — lotes {data.lotesVendendoSimultaneamente.map((l) => `#${l}`).join(', ')}</>
               )}
             </p>
           </section>
 
+          {/* Histórico de Lotes */}
           <section className="admin-card">
             <h2>Histórico de Lotes</h2>
             <table className="admin-table">
@@ -161,7 +164,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {data.historico.map((l) => (
+                {data.historico?.map((l) => (
                   <tr key={l.lote}>
                     <td>#{l.lote}</td>
                     <td>{l.quantidadeInicial}</td>
@@ -178,6 +181,7 @@ export default function AdminDashboard() {
         </>
       )}
 
+      {/* Lotes (com prêmios restantes usando optional chaining) */}
       {lots && (
         <section className="admin-card">
           <h2>Lotes</h2>
@@ -195,7 +199,7 @@ export default function AdminDashboard() {
 
               <h3 className="admin-subheading">Prêmios restantes por categoria</h3>
               <div className="admin-stats">
-                {lots.activeLot.premiosRestantes.map((p) => (
+                {lots.activeLot?.premiosRestantes?.map((p) => (
                   <Stat key={p.label} label={p.label} value={p.remaining} />
                 ))}
               </div>
@@ -216,31 +220,32 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {lots.lotesFinalizados.length === 0 && (
+              {lots.lotesFinalizados?.length === 0 ? (
                 <tr>
                   <td colSpan={5}>Nenhum lote finalizado ainda.</td>
                 </tr>
+              ) : (
+                lots.lotesFinalizados.map((l) => (
+                  <tr key={l.lote}>
+                    <td>#{l.lote}</td>
+                    <td>{l.vendidos}</td>
+                    <td>{l.receitaEstimadaSol} SOL</td>
+                    <td>{fmt(l.criadoEm)}</td>
+                    <td>{fmt(l.encerradoEm)}</td>
+                  </tr>
+                ))
               )}
-              {lots.lotesFinalizados.map((l) => (
-                <tr key={l.lote}>
-                  <td>#{l.lote}</td>
-                  <td>{l.vendidos}</td>
-                  <td>{l.receitaEstimadaSol} SOL</td>
-                  <td>{fmt(l.criadoEm)}</td>
-                  <td>{fmt(l.encerradoEm)}</td>
-                </tr>
-              ))}
             </tbody>
           </table>
         </section>
       )}
 
+      {/* Claims */}
       {claims && (
         <section className="admin-card">
           <h2>Claims — Pagamento Manual de Prêmios</h2>
           <p className="admin-note">
-            Esta área nunca envia SOL automaticamente. O administrador paga manualmente, pela própria carteira, e
-            então marca o claim como pago aqui — apenas para organização e auditoria.
+            Esta área nunca envia SOL automaticamente. O administrador paga manualmente e marca como pago aqui.
           </p>
 
           <div className="admin-chat-mod">
@@ -265,30 +270,36 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {claims.length === 0 && (
+              {claims.length === 0 ? (
                 <tr>
                   <td colSpan={7}>Nenhum claim registrado ainda.</td>
                 </tr>
+              ) : (
+                claims.map((c) => (
+                  <tr key={c.ticketId}>
+                    <td>{c.ticketId}</td>
+                    <td>{c.wallet}</td>
+                    <td>{c.prizeSol} SOL</td>
+                    <td>{fmt(c.claimedAt)}</td>
+                    <td className="admin-table__mono">{c.txSignature}</td>
+                    <td>
+                      {c.claimStatus === 'PAID' 
+                        ? `🟢 Pago (${c.claimPaidBy}, ${fmt(c.claimPaidAt)})` 
+                        : '🟡 Pendente'}
+                    </td>
+                    <td>
+                      {c.claimStatus === 'PENDING' && (
+                        <button 
+                          className="btn btn--ghost" 
+                          onClick={() => handleMarkPaid(c.ticketId, `${c.prizeSol} SOL`, c.wallet)}
+                        >
+                          Marcar como Pago
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
               )}
-              {claims.map((c) => (
-                <tr key={c.ticketId}>
-                  <td>{c.ticketId}</td>
-                  <td>{c.wallet}</td>
-                  <td>{c.prizeSol} SOL</td>
-                  <td>{fmt(c.claimedAt)}</td>
-                  <td className="admin-table__mono">{c.txSignature}</td>
-                  <td>
-                    {c.claimStatus === 'PAID' ? `🟢 Pago (${c.claimPaidBy}, ${fmt(c.claimPaidAt)})` : '🟡 Pendente'}
-                  </td>
-                  <td>
-                    {c.claimStatus === 'PENDING' && (
-                      <button className="btn btn--ghost" onClick={() => handleMarkPaid(c.ticketId, `${c.prizeSol} SOL`, c.wallet)}>
-                        Marcar como Pago
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
             </tbody>
           </table>
 
@@ -296,6 +307,7 @@ export default function AdminDashboard() {
         </section>
       )}
 
+      {/* Chat Global */}
       {chat && (
         <section className="admin-card">
           <h2>Chat Global</h2>
@@ -308,10 +320,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="admin-chat-actions">
-            <button
-              className="btn btn--ghost"
-              onClick={() => runAction(() => clearChat(token))}
-            >
+            <button className="btn btn--ghost" onClick={() => runAction(() => clearChat(token))}>
               Limpar Chat
             </button>
           </div>
@@ -359,7 +368,7 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {chat.onlineWallets.map((w) => (
+              {chat.onlineWallets?.map((w) => (
                 <tr key={w.wallet}>
                   <td>{w.wallet}</td>
                   <td>{new Date(w.connectedAt).toLocaleTimeString()}</td>
@@ -383,4 +392,3 @@ function Stat({ label, value }) {
     </div>
   );
 }
-
