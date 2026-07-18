@@ -1,26 +1,135 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ConnectionProvider,
   WalletProvider as SolanaWalletProvider,
-  useWallet,
+  useWallet as useSolanaWallet,
+  useConnection,
 } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
-import { clusterApiUrl } from '@solana/web3.js';
+import {
+  clusterApiUrl,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+} from '@solana/web3.js';
 
-// Estilos do modal
 import '@solana/wallet-adapter-react-ui/styles.css';
 
-const WalletCtx = createContext(null);
+export const WalletContext = createContext(null);
+
+const endpoint = clusterApiUrl('mainnet-beta');
+
+function WalletBridge({ children }) {
+  const { connection } = useConnection();
+
+  const {
+    publicKey,
+    connected,
+    connecting,
+    disconnect,
+    connect,
+    wallets,
+    select,
+    sendTransaction,
+  } = useSolanaWallet();
+
+  const [balanceLamports, setBalanceLamports] = useState(0);
+  const [status, setStatus] = useState('idle');
+
+  useEffect(() => {
+    if (!connected || !publicKey) {
+      setBalanceLamports(0);
+      setStatus('idle');
+      return;
+    }
+
+    setStatus('connected');
+
+    connection
+      .getBalance(publicKey)
+      .then(setBalanceLamports)
+      .catch(console.error);
+  }, [connected, publicKey, connection]);
+
+  const sendPayment = useCallback(
+    async (toAddress, lamports) => {
+      if (!publicKey) {
+        throw new Error('WALLET_NOT_CONNECTED');
+      }
+
+      setStatus('sending');
+
+      try {
+        const { blockhash } = await connection.getLatestBlockhash();
+
+        const tx = new Transaction({
+          feePayer: publicKey,
+          recentBlockhash: blockhash,
+        }).add(
+          SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: new PublicKey(toAddress),
+            lamports,
+          })
+        );
+
+        const signature = await sendTransaction(tx, connection);
+
+        await connection.confirmTransaction(signature, 'confirmed');
+
+        setStatus('success');
+
+        return signature;
+      } catch (err) {
+        setStatus('error');
+        throw err;
+      }
+    },
+    [publicKey, connection, sendTransaction]
+  );
+
+  const value = useMemo(
+    () => ({
+      address: publicKey?.toBase58() ?? null,
+      publicKey,
+      connected,
+      connecting,
+      wallets,
+      balanceLamports,
+      status,
+      connection,
+      connect,
+      disconnect,
+      select,
+      sendPayment,
+    }),
+    [
+      publicKey,
+      connected,
+      connecting,
+      wallets,
+      balanceLamports,
+      status,
+      connection,
+      connect,
+      disconnect,
+      select,
+      sendPayment,
+    ]
+  );
+
+  return (
+    <WalletContext.Provider value={value}>
+      {children}
+    </WalletContext.Provider>
+  );
+}
 
 export function WalletProvider({ children }) {
-  const endpoint = useMemo(() => clusterApiUrl('mainnet-beta'), []);
-
-  // SÓ Phantom + Solflare por enquanto. Sem Ledger/Coinbase/Trust
-  // Eles puxam crypto/stream do Node e quebram o build do Vite
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
@@ -29,34 +138,13 @@ export function WalletProvider({ children }) {
     []
   );
 
-  const [address, setAddress] = useState(null);
-
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <SolanaWalletProvider wallets={wallets} autoConnect>
+      <SolanaWalletProvider wallets={wallets} autoConnect={false}>
         <WalletModalProvider>
-          <WalletContextBridge setAddress={setAddress}>
-            <WalletCtx.Provider value={{ address }}>
-              {children}
-            </WalletCtx.Provider>
-          </WalletContextBridge>
+          <WalletBridge>{children}</WalletBridge>
         </WalletModalProvider>
       </SolanaWalletProvider>
     </ConnectionProvider>
   );
-}
-
-// Bridge pra pegar a address do hook e jogar no nosso context
-function WalletContextBridge({ children, setAddress }) {
-  const { publicKey } = useWallet();
-  
-  useEffect(() => {
-    setAddress(publicKey?.toBase58() || null);
-  }, [publicKey, setAddress]);
-
-  return children;
-}
-
-export function useWalletContext() {
-  return useContext(WalletCtx);
 }
