@@ -1,51 +1,74 @@
 import { useEffect, useState } from 'react';
-import { I18nProvider } from './i18n/I18nProvider'
+import { useI18n } from './i18n/I18nProvider';
 import { useAudioBoot } from './hooks/useAudioBoot';
 import { api } from './api';
+
 import LanguageSwitch from './components/LanguageSwitch';
 import BuyFlow from './components/BuyFlow';
 import VolumeControl from './components/VolumeControl';
-import WalletButton from './wallet/WalletButton.jsx';
-import WalletModal from './wallet/WalletModal.jsx';
-import ChatToggleButton from './chat/ChatToggleButton.jsx';
-import ChatWindow from './chat/ChatWindow.jsx';
-import MyTicketsPanel from './tickets/MyTicketsPanel.jsx';
-import PendingPrizeBanner from './tickets/PendingPrizeBanner.jsx';
+
+import WalletButton from './wallet/WalletButton';
+import WalletModal from './wallet/WalletModal';
+
+import ChatToggleButton from './chat/ChatToggleButton';
+import ChatWindow from './chat/ChatWindow';
+
+import MyTicketsPanel from './tickets/MyTicketsPanel';
+import PendingPrizeBanner from './tickets/PendingPrizeBanner';
 
 export default function App() {
   const { t } = useI18n();
+
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [ticketsOpen, setTicketsOpen] = useState(false);
-  
+
   useAudioBoot();
 
   useEffect(() => {
-    let isMounted = true;
-    
-    async function loadConfig() {
-      try {
-        const data = await api.getConfig();
-        if (isMounted) setConfig(data);
-      } catch (error) {
-        console.error('Failed to load config:', error);
-        if (isMounted) setConfig({ ticketPriceSol: 0.02 }); // fallback
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-    
-    loadConfig();
-    
-    return () => { isMounted = false; };
-  }, []);
+    let cancelled = false;
 
-  const openTickets = () => setTicketsOpen(true);
+    const loadConfig = async () => {
+      try {
+        const config = await api.getConfig();
+
+        if (!cancelled) {
+          setConfig(config);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar configuração:', err);
+
+        if (!cancelled) {
+          setConfig({
+            ticketPriceSol: 0.02,
+          });
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadConfig();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (loading) {
     return (
-      <div className="page" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh'}}>
-        <h2>Carregando...</h2>
+      <div
+        className="page"
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+        }}
+      >
+        <h2>{t('loading') || 'Carregando...'}</h2>
       </div>
     );
   }
@@ -56,10 +79,16 @@ export default function App() {
         <div className="topbar__brand">
           RASPE<span className="topbar__brand-accent">SOL</span>
         </div>
+
         <div className="topbar__right">
-          <button className="tickets-toggle" onClick={openTickets} aria-label={t('myTickets')}>
+          <button
+            className="tickets-toggle"
+            aria-label={t('myTickets')}
+            onClick={() => setTicketsOpen(true)}
+          >
             🎟️
           </button>
+
           <ChatToggleButton />
           <VolumeControl />
           <LanguageSwitch />
@@ -69,12 +98,23 @@ export default function App() {
 
       <main className="hero">
         <div className="hero__foil-strip" aria-hidden="true" />
+
         <h1 className="hero__title">Raspe SOL</h1>
-        <p className="hero__tagline">{t('tagline')}</p>
 
-        <PendingPrizeBanner onViewTickets={openTickets} />
+        <p className="hero__tagline">
+          {t('tagline')}
+        </p>
 
-        {config && <BuyFlow config={config} onViewTickets={openTickets} />}
+        <PendingPrizeBanner
+          onViewTickets={() => setTicketsOpen(true)}
+        />
+
+        {config && (
+          <BuyFlow
+            config={config}
+            onViewTickets={() => setTicketsOpen(true)}
+          />
+        )}
       </main>
 
       <footer className="footer">
@@ -82,8 +122,13 @@ export default function App() {
       </footer>
 
       <WalletModal />
+
       <ChatWindow />
-      <MyTicketsPanel open={ticketsOpen} onClose={() => setTicketsOpen(false)} />
+
+      <MyTicketsPanel
+        open={ticketsOpen}
+        onClose={() => setTicketsOpen(false)}
+      />
     </div>
   );
 }
