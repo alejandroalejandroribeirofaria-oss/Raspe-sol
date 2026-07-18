@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useWallet } from '../wallet/useWallet.js';
-import { useI18n } from '../i18n/I18nContext';
+import { useI18n } from '../i18n/I18nProvider'
 import { api } from '../api.js';
 
 export default function PendingPrizeBanner({ onViewTickets }) {
