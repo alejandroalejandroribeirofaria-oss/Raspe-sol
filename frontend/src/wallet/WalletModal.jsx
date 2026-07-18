@@ -1,4 +1,4 @@
-import { useI18n } from '../i18n/I18nContext';
+import { I18nProvider } from '../i18n/I18nProvider'
 import { useWallet } from './useWallet.js';
 import { WALLET_READY_STATE } from './walletUtils.js';
 import { audioManager } from '../audio/AudioManager.js';
