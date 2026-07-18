@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useI18n } from '../i18n/I18nContext';
+import { useI18n } from '../i18n/I18nProvider'
 import { audioManager } from '../audio/AudioManager.js';
 import { resultEffectForPrize } from '../audio/config.js';
 
+const { T } = useri18n()
 const REVEAL_THRESHOLD = 0.55; // fraction of foil scratched before auto-clearing
 
 export default function ScratchCard({ prizeLabel, prizeLamports = 0, onRevealed }) {
