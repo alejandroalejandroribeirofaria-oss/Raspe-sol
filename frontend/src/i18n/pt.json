@@ -1,4 +1,5 @@
 {
+  "loading": "Carregando...",
   "tagline": "Bilhetes de raspadinha com prova justa, liquidados na Solana",
   "connectWallet": "Conectar Carteira",
   "walletConnected": "Conectado",
@@ -45,7 +46,6 @@
   "report": "Denunciar",
   "reported": "Denunciada",
   "copyAddress": "Copiar endereço",
-  "copied": "Copiado!",
   "imageMessage": "📷 Imagem",
   "userJoined": "entrou no chat.",
   "userLeft": "saiu.",
