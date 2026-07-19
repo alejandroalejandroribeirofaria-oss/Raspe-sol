@@ -5,9 +5,15 @@ import {
   useWallet as useSolanaWallet,
   useConnection,
 } from '@solana/wallet-adapter-react';
-import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
+import { WalletModalProvider, useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
-import { clusterApiUrl, Transaction } from '@solana/web3.js';
+import { 
+  clusterApiUrl, 
+  Transaction, 
+  SystemProgram, 
+  PublicKey, // <- ADICIONADO
+  LAMPORTS_PER_SOL 
+} from '@solana/web3.js';
 import '@solana/wallet-adapter-react-ui/styles.css';
 
 export const WalletContext = createContext(null);
@@ -25,29 +31,50 @@ const endpoint = clusterApiUrl('mainnet-beta');
 function WalletBridge({ children }) {
   const solanaWallet = useSolanaWallet();
   const { connection } = useConnection();
+  const { setVisible } = useWalletModal();
   const [address, setAddress] = useState(null);
 
   useEffect(() => {
     setAddress(solanaWallet.publicKey? solanaWallet.publicKey.toBase58() : null);
   }, [solanaWallet.publicKey]);
 
-  const signAndSend = useCallback(async (instructions) => {
+  // CORRIGIDO: PublicKey + signAndSendTransaction
+  const sendPayment = useCallback(async (toWallet, lamports) => {
     if (!solanaWallet.publicKey) throw new Error('Wallet not connected');
-    const transaction = new Transaction().add(...instructions);
+    if (!solanaWallet.sendTransaction) throw new Error('Wallet does not support sending transactions');
+    
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: solanaWallet.publicKey,
+        toPubkey: new PublicKey(toWallet), // <- CORRIGIDO: converte string pra PublicKey
+        lamports: Number(lamports), // <- garante que é number
+      })
+    );
+    
     transaction.feePayer = solanaWallet.publicKey;
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-    const signed = await solanaWallet.signTransaction(transaction);
-    const signature = await connection.sendRawTransaction(signed.serialize());
+
+    // CORRIGIDO: usa sendTransaction que funciona em TODAS as wallets
+    const signature = await solanaWallet.sendTransaction(transaction, connection);
     await connection.confirmTransaction(signature, 'confirmed');
     return signature;
   }, [solanaWallet, connection]);
+
+  const refreshBalance = useCallback(async () => {
+    if(solanaWallet.publicKey) {
+      return await connection.getBalance(solanaWallet.publicKey)
+    }
+  }, [connection, solanaWallet.publicKey])
 
   const value = useMemo(() => ({
     ...solanaWallet,
     address,
     connection,
-    signAndSend,
-  }), [solanaWallet, address, connection, signAndSend]);
+    sendPayment,
+    refreshBalance,
+    openModal: () => setVisible(true),
+    closeModal: () => setVisible(false),
+  }), [solanaWallet, address, connection, sendPayment, refreshBalance, setVisible]);
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 }
