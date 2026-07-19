@@ -1,4 +1,3 @@
-import ChatToggleButton from './chat/ChatToggleButton.jsx';
 import ChatWindow from './chat/ChatWindow.jsx';
 import { useEffect, useState } from 'react';
 import { useI18n } from './i18n/I18nProvider';
@@ -21,6 +20,7 @@ export default function App() {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [ticketsOpen, setTicketsOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useAudioBoot();
 
@@ -88,7 +88,14 @@ export default function App() {
             🎟️
           </button>
 
-          <ChatToggleButton />
+          <button
+            className="chat-toggle"
+            aria-label={t('chat') || 'Chat'}
+            onClick={() => setChatOpen(true)}
+          >
+            💬
+          </button>
+
           <VolumeControl />
           <LanguageSwitch />
           <WalletButton />
@@ -122,7 +129,7 @@ export default function App() {
 
       <WalletModal />
 
-      <ChatWindow />
+      <ChatWindow open={chatOpen} onClose={() => setChatOpen(false)} />
 
       <MyTicketsPanel
         open={ticketsOpen}
