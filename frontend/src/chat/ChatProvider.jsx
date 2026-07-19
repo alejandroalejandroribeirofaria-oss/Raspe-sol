@@ -21,11 +21,11 @@ export function ChatProvider({ children }) {
   const [messages, setMessages] = useState([]);
   const [onlineCount, setOnlineCount] = useState(0);
   const [typingWallets, setTypingWallets] = useState([]);
-  const [connectionStatus, setConnectionStatus] = useState('closed'); // 'connecting' | 'open' | 'closed'
+  const [connectionStatus, setConnectionStatus] = useState('closed');
   const [lastError, setLastError] = useState(null);
 
   const wsRef = useRef(null);
-  const typingTimersRef = useRef(new Map()); // wallet -> timeout id
+  const typingTimersRef = useRef(new Map());
   const reconnectTimerRef = useRef(null);
   const panelOpenRef = useRef(panelOpen);
   panelOpenRef.current = panelOpen;
@@ -35,7 +35,7 @@ export function ChatProvider({ children }) {
 
   const togglePanel = useCallback(() => {
     setPanelOpen((open) => {
-      const next = !open;
+      const next =!open;
       if (next) setUnreadCount(0);
       return next;
     });
@@ -52,10 +52,10 @@ export function ChatProvider({ children }) {
 
   const markTyping = useCallback(
     (wallet) => {
-      setTypingWallets((prev) => (prev.includes(wallet) ? prev : [...prev, wallet]));
+      setTypingWallets((prev) => (prev.includes(wallet)? prev : [...prev, wallet]));
       clearTypingTimer(wallet);
       const timeoutId = setTimeout(() => {
-        setTypingWallets((prev) => prev.filter((w) => w !== wallet));
+        setTypingWallets((prev) => prev.filter((w) => w!== wallet));
         typingTimersRef.current.delete(wallet);
       }, TYPING_TIMEOUT_MS);
       typingTimersRef.current.set(wallet, timeoutId);
@@ -63,9 +63,8 @@ export function ChatProvider({ children }) {
     [clearTypingTimer]
   );
 
-  // --- WebSocket lifecycle: connect once a wallet is present, reconnect on drop ---
   useEffect(() => {
-    if (!connected || !address) {
+    if (!connected ||!address) {
       setConnectionStatus('closed');
       return;
     }
@@ -92,72 +91,59 @@ export function ChatProvider({ children }) {
 
         switch (data.type) {
           case 'chat:init':
-            setMessages(data.messages.map((m) => ({ kind: 'message', ...m })));
+            setMessages(data.messages.map((m) => ({ kind: 'message',...m })));
             setOnlineCount(data.onlineCount);
             break;
-
           case 'chat:new':
-            setMessages((prev) => [...prev, { kind: 'message', ...data.message }]);
-            if (!panelOpenRef.current && data.message.wallet !== address) {
+            setMessages((prev) => [...prev, { kind: 'message',...data.message }]);
+            if (!panelOpenRef.current && data.message.wallet!== address) {
               setUnreadCount((c) => c + 1);
             }
             break;
-
           case 'chat:join':
             setOnlineCount(data.onlineCount);
             setMessages((prev) => [
-              ...prev,
+             ...prev,
               { kind: 'system', type: 'join', id: `join-${data.wallet}-${Date.now()}`, wallet: data.wallet },
             ]);
             break;
-
           case 'chat:leave':
             setOnlineCount(data.onlineCount);
             setMessages((prev) => [
-              ...prev,
+             ...prev,
               { kind: 'system', type: 'leave', id: `leave-${data.wallet}-${Date.now()}`, wallet: data.wallet },
             ]);
             break;
-
           case 'chat:presence':
             setOnlineCount(data.onlineCount);
             break;
-
           case 'chat:typing':
-            if (data.wallet !== address) markTyping(data.wallet);
+            if (data.wallet!== address) markTyping(data.wallet);
             break;
-
           case 'chat:reaction':
             setMessages((prev) =>
-              prev.map((m) => (m.kind === 'message' && m.id === data.messageId ? { ...m, reactions: data.reactions } : m))
+              prev.map((m) => (m.kind === 'message' && m.id === data.messageId? {...m, reactions: data.reactions } : m))
             );
             break;
-
           case 'chat:hidden':
-            setMessages((prev) => prev.filter((m) => !(m.kind === 'message' && m.id === data.messageId)));
+            setMessages((prev) => prev.filter((m) =>!(m.kind === 'message' && m.id === data.messageId)));
             break;
-
           case 'chat:reported':
             setMessages((prev) =>
-              prev.map((m) => (m.kind === 'message' && m.id === data.messageId ? { ...m, reportedByMe: true } : m))
+              prev.map((m) => (m.kind === 'message' && m.id === data.messageId? {...m, reportedByMe: true } : m))
             );
             break;
-
           case 'chat:expired':
-            setMessages((prev) => prev.filter((m) => !(m.kind === 'message' && data.messageIds.includes(m.id))));
+            setMessages((prev) => prev.filter((m) =>!(m.kind === 'message' && data.messageIds.includes(m.id))));
             break;
-
           case 'chat:kicked':
             setLastError({ code: 'KICKED', message: data.reason });
             ws.close();
             break;
-
           case 'chat:error':
             setLastError({ code: data.code, message: data.message });
             break;
-
           default:
-          // unknown/forward-compatible message type — ignore
         }
       };
 
@@ -189,7 +175,7 @@ export function ChatProvider({ children }) {
 
   const send = useCallback((payload) => {
     const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
+    if (!ws || ws.readyState!== WebSocket.OPEN) {
       setLastError({ code: 'NOT_CONNECTED', message: 'Not connected to chat.' });
       return;
     }
@@ -249,5 +235,7 @@ export function ChatProvider({ children }) {
     connected,
   };
 
-  export default ChatProvider
-              }
+  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
+}
+
+export default ChatProvider
