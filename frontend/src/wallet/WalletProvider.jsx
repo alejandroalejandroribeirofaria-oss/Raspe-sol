@@ -23,7 +23,7 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 export const WalletContext = createContext(null);
 
 // ESSE AQUI QUE O RENDER NÃO TÁ ACHANDO
-export const useWallet = () => {
+export const useAppWallet = () => {
   const ctx = useContext(WalletContext)
   if (!ctx) throw new Error('useWallet must be used within <WalletProvider>')
   return ctx
