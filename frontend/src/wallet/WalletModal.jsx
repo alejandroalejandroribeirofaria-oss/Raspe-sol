@@ -1,6 +1,6 @@
 
 import { useI18n } from '../i18n/I18nProvider'  // <- troquei Provider por useI18n
-import { useWallet } from './useWallet.js';
+import { useWallet } from './WalletProvider'
 import { WALLET_READY_STATE } from './walletUtils.js';
 import { audioManager } from '../audio/AudioManager.js';
 export default function WalletModal() {
