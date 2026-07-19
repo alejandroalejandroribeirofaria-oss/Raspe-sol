@@ -2,6 +2,7 @@ import ChatWindow from './chat/ChatWindow.jsx';
 import { useEffect, useState } from 'react';
 import { useI18n } from './i18n/I18nProvider';
 import { useAudioBoot } from './hooks/useAudioBoot';
+import { useChat } from './chat/ChatProvider';
 import { api } from './api';
 
 import LanguageSwitch from './components/LanguageSwitch';
@@ -20,7 +21,8 @@ export default function App() {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [ticketsOpen, setTicketsOpen] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+
+  const { togglePanel } = useChat();
 
   useAudioBoot();
 
@@ -91,7 +93,7 @@ export default function App() {
           <button
             className="chat-toggle"
             aria-label={t('chat') || 'Chat'}
-            onClick={() => setChatOpen(true)}
+            onClick={togglePanel}
           >
             💬
           </button>
@@ -129,7 +131,7 @@ export default function App() {
 
       <WalletModal />
 
-      <ChatWindow open={chatOpen} onClose={() => setChatOpen(false)} />
+      <ChatWindow />
 
       <MyTicketsPanel
         open={ticketsOpen}
