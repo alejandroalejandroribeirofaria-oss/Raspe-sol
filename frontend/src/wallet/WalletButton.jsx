@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useI18n } from '../i18n/I18nProvider';  // <- só muda isso aqui
-import { useWallet } from './useWallet.js';
+import { useWallet } from './WalletProvider'
 import { shortenAddress, formatSol, copyToClipboard, WALLET_READY_STATE } from './walletUtils.js';
 import { audioManager } from '../audio/AudioManager.js';
 export default function WalletButton() {
