@@ -6,8 +6,8 @@ import {
   formatSol,
   copyToClipboard,
   WALLET_READY_STATE,
-} from './walletUtils.js';
-import { audioManager } from '../audio/AudioManager.js';
+} from './walletUtils';
+import { audioManager } from '../audio/AudioManager';
 
 export default function WalletButton() {
   const { t } = useI18n();
@@ -19,10 +19,9 @@ export default function WalletButton() {
     walletName,
     walletIcon,
     wallets = [],
-    openModal,
     connect,
-    select,
     disconnect,
+    openModal,
     networkMismatch,
   } = useWallet();
 
@@ -33,19 +32,14 @@ export default function WalletButton() {
       audioManager.play('click');
     } catch {}
 
-    const installed = wallets.filter(
-      (wallet) => wallet.readyState === WALLET_READY_STATE.INSTALLED
-    );
-
     try {
+      const installed = wallets.filter(
+        (wallet) => wallet.readyState === WALLET_READY_STATE.INSTALLED
+      );
+
       if (installed.length === 1) {
-        select(installed[0].adapter.name);
-        await connect();
-
-        try {
-          audioManager.play('walletConnect');
-        } catch {}
-
+        await connect(installed[0].adapter.name);
+        audioManager.play('walletConnect');
         return;
       }
 
@@ -58,9 +52,6 @@ export default function WalletButton() {
   const handleDisconnect = async () => {
     try {
       audioManager.play('walletDisconnect');
-    } catch {}
-
-    try {
       await disconnect();
     } catch (err) {
       console.error(err);
@@ -70,19 +61,11 @@ export default function WalletButton() {
   const handleCopy = async () => {
     if (!address) return;
 
-    const ok = await copyToClipboard(address);
-
-    if (!ok) return;
-
-    try {
+    if (await copyToClipboard(address)) {
       audioManager.play('click');
-    } catch {}
-
-    setCopied(true);
-
-    setTimeout(() => {
-      setCopied(false);
-    }, 1500);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
   };
 
   if (status === 'connected' && address) {
@@ -123,14 +106,6 @@ export default function WalletButton() {
         >
           ⏻
         </button>
-      </div>
-    );
-  }
-
-  if (status === 'locked') {
-    return (
-      <div className="wallet-panel wallet-panel--warning">
-        <span>{t('walletLocked')}</span>
       </div>
     );
   }
