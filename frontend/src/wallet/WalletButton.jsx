@@ -1,19 +1,27 @@
 import { useState } from 'react';
-import { useI18n } from '../i18n/I18nProvider';  // <- só muda isso aqui
-import { useWallet } from './WalletProvider'
-import { shortenAddress, formatSol, copyToClipboard, WALLET_READY_STATE } from './walletUtils.js';
+import { useI18n } from '../i18n/I18nProvider';
+import { useWallet } from './WalletProvider';
+import {
+  shortenAddress,
+  formatSol,
+  copyToClipboard,
+  WALLET_READY_STATE,
+} from './walletUtils.js';
 import { audioManager } from '../audio/AudioManager.js';
+
 export default function WalletButton() {
   const { t } = useI18n();
+
   const {
     address,
     balanceLamports,
     status,
     walletName,
     walletIcon,
-    wallets = [], // <- adiciona default pra não quebrar
+    wallets = [],
     openModal,
     connect,
+    select,
     disconnect,
     networkMismatch,
   } = useWallet();
@@ -21,45 +29,98 @@ export default function WalletButton() {
   const [copied, setCopied] = useState(false);
 
   const handleConnectClick = async () => {
-    try { audioManager.play('click'); } catch {}
-    const installed = wallets.filter((w) => w.readyState === WALLET_READY_STATE.INSTALLED);
-    if (installed.length === 1) {
-      try {
-        await connect(installed[0].adapter.name);
-        try { audioManager.play('walletConnect'); } catch {}
-      } catch {
-        // erro já tratado no Provider
+    try {
+      audioManager.play('click');
+    } catch {}
+
+    const installed = wallets.filter(
+      (wallet) => wallet.readyState === WALLET_READY_STATE.INSTALLED
+    );
+
+    try {
+      if (installed.length === 1) {
+        select(installed[0].adapter.name);
+        await connect();
+
+        try {
+          audioManager.play('walletConnect');
+        } catch {}
+
+        return;
       }
-      return;
+
+      openModal();
+    } catch (err) {
+      console.error('Erro ao conectar carteira:', err);
     }
-    openModal();
   };
 
-  const handleDisconnect = () => {
-    try { audioManager.play('walletDisconnect'); } catch {}
-    disconnect();
+  const handleDisconnect = async () => {
+    try {
+      audioManager.play('walletDisconnect');
+    } catch {}
+
+    try {
+      await disconnect();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleCopy = async () => {
     if (!address) return;
+
     const ok = await copyToClipboard(address);
-    if (ok) {
-      try { audioManager.play('click'); } catch {}
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    }
+
+    if (!ok) return;
+
+    try {
+      audioManager.play('click');
+    } catch {}
+
+    setCopied(true);
+
+    setTimeout(() => {
+      setCopied(false);
+    }, 1500);
   };
 
   if (status === 'connected' && address) {
     return (
       <div className="wallet-panel">
-        {networkMismatch && <span className="wallet-panel__warning" title={t('networkMismatch')}>⚠️</span>}
-        {walletIcon && <img src={walletIcon} alt={walletName} className="wallet-panel__icon" />}
-        <span className="wallet-panel__balance">{formatSol(balanceLamports)}</span>
-        <button className="wallet-panel__address" onClick={handleCopy}>
-          {copied? t('copied') : shortenAddress(address)}
+        {networkMismatch && (
+          <span
+            className="wallet-panel__warning"
+            title={t('networkMismatch')}
+          >
+            ⚠️
+          </span>
+        )}
+
+        {walletIcon && (
+          <img
+            src={walletIcon}
+            alt={walletName}
+            className="wallet-panel__icon"
+          />
+        )}
+
+        <span className="wallet-panel__balance">
+          {formatSol(balanceLamports)}
+        </span>
+
+        <button
+          className="wallet-panel__address"
+          onClick={handleCopy}
+        >
+          {copied ? t('copied') : shortenAddress(address)}
         </button>
-        <button className="wallet-panel__disconnect" onClick={handleDisconnect} aria-label={t('disconnect')}>
+
+        <button
+          className="wallet-panel__disconnect"
+          onClick={handleDisconnect}
+          aria-label={t('disconnect')}
+        >
           ⏻
         </button>
       </div>
@@ -75,7 +136,10 @@ export default function WalletButton() {
   }
 
   return (
-    <button className="wallet-pill" onClick={handleConnectClick}>
+    <button
+      className="wallet-pill"
+      onClick={handleConnectClick}
+    >
       {t('connectWallet')}
     </button>
   );
