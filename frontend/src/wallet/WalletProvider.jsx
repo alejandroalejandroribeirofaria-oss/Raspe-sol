@@ -1,23 +1,29 @@
-import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   ConnectionProvider,
   WalletProvider as SolanaWalletProvider,
-  useWallet as useSolanaWallet,
   useConnection,
+  useWallet as useSolanaWallet,
 } from '@solana/wallet-adapter-react';
 import {
   WalletModalProvider,
   useWalletModal,
 } from '@solana/wallet-adapter-react-ui';
 import {
-  PhantomWalletAdapter,
   SolflareWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import {
   clusterApiUrl,
-  Transaction,
-  SystemProgram,
   PublicKey,
+  SystemProgram,
+  Transaction,
 } from '@solana/web3.js';
 
 import '@solana/wallet-adapter-react-ui/styles.css';
@@ -28,9 +34,7 @@ export function useWallet() {
   const ctx = useContext(WalletContext);
 
   if (!ctx) {
-    throw new Error(
-      'useWallet must be used within <WalletProvider>.'
-    );
+    throw new Error('useWallet must be used within <WalletProvider>.');
   }
 
   return ctx;
@@ -39,60 +43,67 @@ export function useWallet() {
 const endpoint = clusterApiUrl('mainnet-beta');
 
 function WalletBridge({ children }) {
-  const solanaWallet = useSolanaWallet();
+  const wallet = useSolanaWallet();
   const { connection } = useConnection();
   const { setVisible } = useWalletModal();
 
-  const [address, setAddress] = useState(null);
   const [balanceLamports, setBalanceLamports] = useState(0);
 
-  useEffect(() => {
-    setAddress(
-      solanaWallet.publicKey
-        ? solanaWallet.publicKey.toBase58()
-        : null
-    );
-  }, [solanaWallet.publicKey]);
+  const address = useMemo(
+    () => wallet.publicKey?.toBase58() ?? null,
+    [wallet.publicKey]
+  );
 
   const refreshBalance = useCallback(async () => {
-    if (!solanaWallet.publicKey) {
+    if (!wallet.publicKey) {
       setBalanceLamports(0);
       return 0;
     }
 
-    const balance = await connection.getBalance(
-      solanaWallet.publicKey
-    );
-
+    const balance = await connection.getBalance(wallet.publicKey);
     setBalanceLamports(balance);
 
     return balance;
-  }, [connection, solanaWallet.publicKey]);
+  }, [wallet.publicKey, connection]);
 
   useEffect(() => {
     refreshBalance();
   }, [refreshBalance]);
 
+  const connect = useCallback(
+    async (walletName) => {
+      if (walletName && wallet.wallet?.adapter?.name !== walletName) {
+        wallet.select(walletName);
+
+        // espera o adapter trocar
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      return wallet.connect();
+    },
+    [wallet]
+  );
+
   const sendPayment = useCallback(
     async (toWallet, lamports) => {
-      if (!solanaWallet.publicKey)
+      if (!wallet.publicKey) {
         throw new Error('Wallet not connected');
+      }
 
-      const tx = new Transaction().add(
+      const transaction = new Transaction().add(
         SystemProgram.transfer({
-          fromPubkey: solanaWallet.publicKey,
+          fromPubkey: wallet.publicKey,
           toPubkey: new PublicKey(toWallet),
           lamports: Number(lamports),
         })
       );
 
-      tx.feePayer = solanaWallet.publicKey;
-      tx.recentBlockhash = (
-        await connection.getLatestBlockhash()
-      ).blockhash;
+      transaction.feePayer = wallet.publicKey;
+      transaction.recentBlockhash =
+        (await connection.getLatestBlockhash()).blockhash;
 
-      const signature = await solanaWallet.sendTransaction(
-        tx,
+      const signature = await wallet.sendTransaction(
+        transaction,
         connection
       );
 
@@ -102,22 +113,29 @@ function WalletBridge({ children }) {
 
       return signature;
     },
-    [connection, solanaWallet, refreshBalance]
+    [wallet, connection, refreshBalance]
   );
 
   const value = useMemo(
     () => ({
-      ...solanaWallet,
+      ...wallet,
 
       address,
       balanceLamports,
 
-      wallets: solanaWallet.wallets,
-      select: solanaWallet.select,
-      connect: solanaWallet.connect,
-      disconnect: solanaWallet.disconnect,
+      status: wallet.connected ? 'connected' : 'disconnected',
+
+      walletName: wallet.wallet?.adapter?.name ?? null,
+      walletIcon: wallet.wallet?.adapter?.icon ?? null,
+
+      wallets: wallet.wallets,
+
+      connect,
+      disconnect: wallet.disconnect,
+      select: wallet.select,
 
       connection,
+
       sendPayment,
       refreshBalance,
 
@@ -125,12 +143,13 @@ function WalletBridge({ children }) {
       closeModal: () => setVisible(false),
     }),
     [
-      solanaWallet,
+      wallet,
       address,
       balanceLamports,
+      connect,
       connection,
-      sendPayment,
       refreshBalance,
+      sendPayment,
       setVisible,
     ]
   );
@@ -145,8 +164,8 @@ function WalletBridge({ children }) {
 export function WalletProvider({ children }) {
   const wallets = useMemo(
     () => [
-      new PhantomWalletAdapter(),
       new SolflareWalletAdapter(),
+      // Phantom é detectado automaticamente pelo Wallet Standard
     ],
     []
   );
