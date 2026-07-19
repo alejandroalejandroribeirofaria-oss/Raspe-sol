@@ -70,10 +70,10 @@ export default function ChatMessage({ message, isOwn, replyPreview, onReply, onR
         )}
 
         <div className="chat-message__actions">
-          <button onClick={() => onReply(message)}>â†© {t('reply')}</button>
-          <button onClick={() => setShowReactions((s) => !s)}>ðŸ˜€</button>
+          <button onClick={() => onReply(message)}>↩ {t('reply')}</button>
+          <button onClick={() => setShowReactions((s) => !s)}>😀</button>
           {!message.reportedByMe && !isOwn && (
-            <button onClick={() => onReport(message.id)}>âš‘ {t('report')}</button>
+            <button onClick={() => onReport(message.id)}>⚑ {t('report')}</button>
           )}
           {message.reportedByMe && <span className="chat-message__reported-tag">{t('reported')}</span>}
         </div>
@@ -97,4 +97,3 @@ export default function ChatMessage({ message, isOwn, replyPreview, onReply, onR
     </div>
   );
 }
-
