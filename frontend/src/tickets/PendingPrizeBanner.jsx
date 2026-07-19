@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useWallet } from '../wallet/useWallet.js';
+import { useWallet } from '../wallet/WalletProvider'
 import { useI18n } from '../i18n/I18nProvider'
 import { api } from '../api.js';
 
