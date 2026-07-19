@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nProvider' // <- mantém se teu provider existe
 import { useWallet } from '../wallet/WalletProvider'
 import { WALLET_READY_STATE } from '../wallet/walletUtils.js';
 import { audioManager } from '../audio/AudioManager.js';
@@ -39,6 +39,7 @@ export default function BuyFlow({ config, onViewTickets = () => {} }) {
   const [ticket, setTicket] = useState(null);
   const [errorKey, setErrorKey] = useState(null);
   const [finishedScratching, setFinishedScratching] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false); // <- novo pra trocar o openModal
   const unsubscribeRef = useRef(null);
 
   useEffect(() => () => unsubscribeRef.current?.(), []);
@@ -58,24 +59,29 @@ export default function BuyFlow({ config, onViewTickets = () => {} }) {
     setStage(STAGE.ERROR);
   };
 
-  // Same "skip the modal if there's only one installed wallet" rule as the
-  // header's connect button, so Buy Ticket behaves consistently whichever
-  // entry point the user taps.
+  // REFATORADO: nova API da wallet
   const ensureConnected = async () => {
-    const installed = wallet.wallets.filter((w) => w.readyState === WALLET_READY_STATE.INSTALLED);
+    const installed = wallet.wallets.filter(
+      (w) => w.readyState === WALLET_READY_STATE.INSTALLED
+    );
+
     if (installed.length === 1) {
-      await wallet.connect(installed[0].adapter.name);
+      wallet.select(installed[0].adapter.name);
+      await wallet.connect();
       audioManager.play('walletConnect');
-    } else {
-      wallet.openModal();
+      return true;
     }
+
+    // abre teu modal manual pq o provider não tem mais openModal
+    setShowWalletModal(true);
+    return false;
   };
 
   const buy = async () => {
     audioManager.play('click');
     if (!wallet.address) {
-      await ensureConnected();
-      return;
+      const connected = await ensureConnected();
+      if (!connected) return; // espera user escolher no modal
     }
 
     try {
@@ -92,10 +98,11 @@ export default function BuyFlow({ config, onViewTickets = () => {} }) {
       setStage(STAGE.WAITING_WALLET);
       let signature;
       try {
-        signature = await wallet.sendPayment({
-          toWallet: newOrder.treasuryWallet,
-          lamports: newOrder.expectedLamports,
-        });
+        // REFATORADO: nova assinatura
+        signature = await wallet.sendPayment(
+          newOrder.treasuryWallet,
+          newOrder.expectedLamports
+        );
       } catch (err) {
         audioManager.play('paymentError');
         return fail('errorCancelled');
@@ -135,6 +142,10 @@ export default function BuyFlow({ config, onViewTickets = () => {} }) {
 
   return (
     <div className="buy-flow">
+      {showWalletModal && ( // <- adiciona teu componente de modal aqui
+        <div onClick={() => setShowWalletModal(false)}>Fechar modal e escolher wallet</div>
+      )}
+
       {stage === STAGE.IDLE && (
         <>
           <div className="price-tag">
@@ -147,7 +158,7 @@ export default function BuyFlow({ config, onViewTickets = () => {} }) {
             onMouseEnter={() => audioManager.play('hover')}
             disabled={wallet.connecting}
           >
-            {wallet.address ? t('buyTicket') : t('connectWallet')}
+            {wallet.address? t('buyTicket') : t('connectWallet')}
           </button>
         </>
       )}
@@ -201,4 +212,4 @@ export default function BuyFlow({ config, onViewTickets = () => {} }) {
       )}
     </div>
   );
-}
+            }
