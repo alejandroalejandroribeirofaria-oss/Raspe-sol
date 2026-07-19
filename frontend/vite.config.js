@@ -4,27 +4,15 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   base: '/',
-
-  server: {
-    port: 5173,
-  },
-
   build: {
-    outDir: 'dist_FINAL_AGORA', // <-- COLOCA ESSA LINHA
-    emptyOutDir: true,          // <-- E ESSA
-    chunkSizeWarningLimit: 1000,
-
+    outDir: 'dist_FINAL_AGORA',
+    emptyOutDir: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom'],
-          solana: [
-            '@solana/web3.js',
-            '@solana/wallet-adapter-react',
-            '@solana/wallet-adapter-wallets',
-          ],
-        },
-      },
-    },
-  },
+        entryFileNames: `assets/[name]-[hash].js`, // força nome novo
+        chunkFileNames: `assets/[name]-[hash].js`,
+        assetFileNames: `assets/[name]-[hash].[ext]`
+      }
+    }
+  }
 });
