@@ -54,16 +54,25 @@ router.get('/orders/:orderId/tickets', (req, res) => {
 });
 
 // Called by the frontend right after Phantom returns a transaction signature.
-// This does NOT trust the signature at face value — it only kicks off
-// verification and (optionally) a websocket confirmation watch.
+// Now waits for on-chain confirmation before processing payment.
 router.post('/orders/:orderId/confirm', confirmLimiter, async (req, res) => {
   const { orderId } = req.params;
   const { signature, wallet } = req.body ?? {};
   const { ip, userAgent } = clientMeta(req);
 
   try {
+    // 1. ESPERA A REDE CONFIRMAR PRIMEIRO
+    await new Promise((resolve, reject) => {
+      watchSignature(signature, {
+        onConfirmed: resolve,
+        onTimeout: () => reject(new Error('TIMEOUT'))
+      });
+    });
+
+    // 2. Agora sim verifica o pagamento
     const { order, tickets, alreadyPaid } = await confirmPayment({ orderId, signature, wallet, ip, userAgent });
     broadcastOrderUpdate(orderId, { status: 'PAID', txSignature: order.tx_signature, grantedQty: order.granted_qty });
+    
     return res.json({
       status: 'PAID',
       alreadyPaid,
@@ -126,4 +135,3 @@ router.get('/tickets/mine', (req, res) => {
 });
 
 export default router;
-
