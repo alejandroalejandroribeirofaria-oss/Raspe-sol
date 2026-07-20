@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'; // <- adiciona useEffect
+import { useState, useEffect } from 'react';
 import { useI18n } from '../i18n/I18nProvider';
 import { useWallet } from './WalletProvider';
 import {
@@ -13,7 +13,7 @@ export default function WalletButton() {
   const { t } = useI18n();
 
   const {
-    address, // <- esse aqui já vem do provider depois do connect
+    address,
     balanceLamports,
     status,
     walletName,
@@ -27,13 +27,18 @@ export default function WalletButton() {
 
   const [copied, setCopied] = useState(false);
 
-  // ADICIONA ISSO AQUI: conecta o WS quando a wallet conectar
+  // Conecta o WS quando a wallet conectar com validação do Phantom
   useEffect(() => {
-    if (status === 'connected' && address) {
-      console.log('[WS] Conectando com wallet:', address);
-      // Troca pela sua função de connectWS
-      window.connectWS?.(address);
-    }
+    const tryConnectWS = () => {
+      if (window.solana?.isConnected && window.solana.publicKey) {
+        const realAddress = window.solana.publicKey.toString();
+        console.log('[WS] Conectando com wallet REAL:', realAddress);
+        window.connectWS?.(realAddress);
+      } else {
+        console.log('[WS] Phantom não conectada ainda');
+      }
+    };
+    tryConnectWS();
   }, [status, address]);
 
   const handleConnectClick = async () => {
@@ -62,7 +67,7 @@ export default function WalletButton() {
     try {
       audioManager.play('walletDisconnect');
       await disconnect();
-      window.ws?.close(); // <- fecha o WS tbm
+      window.ws?.close();
     } catch (err) {
       console.error(err);
     }
@@ -96,7 +101,7 @@ export default function WalletButton() {
         </span>
 
         <button className="wallet-panel__address" onClick={handleCopy}>
-          {copied? t('copied') : shortenAddress(address)}
+          {copied ? t('copied') : shortenAddress(address)}
         </button>
 
         <button
