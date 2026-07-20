@@ -18,9 +18,7 @@ export const useChat = () => {
   const ctx = useContext(ChatContext);
 
   if (!ctx) {
-    throw new Error(
-      'useChat must be used within ChatProvider'
-    );
+    throw new Error('useChat must be used within ChatProvider');
   }
 
   return ctx;
@@ -34,10 +32,7 @@ const RECONNECT_DELAY_MS = 3000;
 
 export function ChatProvider({ children }) {
 
-  const {
-    address,
-    connected
-  } = useWallet();
+  const { address, connected } = useWallet();
 
 
   const [panelOpen,setPanelOpen] = useState(false);
@@ -49,11 +44,13 @@ export function ChatProvider({ children }) {
   const [lastError,setLastError] = useState(null);
 
 
-
   const wsRef = useRef(null);
   const reconnectRef = useRef(null);
   const cancelledRef = useRef(false);
   const panelOpenRef = useRef(false);
+
+  const pendingMessagesRef = useRef([]);
+
   const typingTimersRef = useRef(new Map());
 
 
@@ -72,9 +69,9 @@ export function ChatProvider({ children }) {
 
   const togglePanel = useCallback(()=>{
 
-    setPanelOpen(open=>{
+    setPanelOpen(prev=>{
 
-      const next = !open;
+      const next=!prev;
 
       if(next){
         setUnreadCount(0);
@@ -96,16 +93,11 @@ export function ChatProvider({ children }) {
 
   const clearTypingTimer = useCallback((wallet)=>{
 
-    const timer =
-      typingTimersRef.current.get(wallet);
-
+    const timer = typingTimersRef.current.get(wallet);
 
     if(timer){
-
       clearTimeout(timer);
-
       typingTimersRef.current.delete(wallet);
-
     }
 
   },[]);
@@ -114,41 +106,28 @@ export function ChatProvider({ children }) {
 
   const markTyping = useCallback((wallet)=>{
 
-
     setTypingWallets(prev=>
-
       prev.includes(wallet)
       ? prev
       : [...prev,wallet]
-
     );
 
 
     clearTypingTimer(wallet);
 
 
-
     const timer=setTimeout(()=>{
 
-
       setTypingWallets(prev=>
-        prev.filter(
-          item=>item!==wallet
-        )
+        prev.filter(w=>w!==wallet)
       );
 
-
       typingTimersRef.current.delete(wallet);
-
 
     },TYPING_TIMEOUT_MS);
 
 
-
-    typingTimersRef.current.set(
-      wallet,
-      timer
-    );
+    typingTimersRef.current.set(wallet,timer);
 
 
   },[clearTypingTimer]);
@@ -157,7 +136,321 @@ export function ChatProvider({ children }) {
 
 
 
+  const sendRaw = useCallback((payload)=>{
+
+    const ws = wsRef.current;
+
+
+    if(ws && ws.readyState === WebSocket.OPEN){
+
+      ws.send(JSON.stringify(payload));
+      return true;
+
+    }
+
+
+    return false;
+
+
+  },[]);
+
+
+
+
+
+
+
+  const connect = useCallback(()=>{
+
+
+    if(!connected || !address){
+      return;
+    }
+
+
+
+    if(
+      wsRef.current &&
+      (
+        wsRef.current.readyState === WebSocket.OPEN ||
+        wsRef.current.readyState === WebSocket.CONNECTING
+      )
+    ){
+
+      return;
+
+    }
+
+
+
+    cancelledRef.current=false;
+
+
+
+    const url = chatWsUrl(address);
+
+
+    console.log(
+      '[CHAT CONNECT]',
+      url
+    );
+
+
+    setConnectionStatus('connecting');
+
+
+
+    const ws = new WebSocket(url);
+
+
+    wsRef.current = ws;
+
+
+
+    ws.onopen=()=>{
+
+
+      console.log(
+        '[CHAT] CONNECTED'
+      );
+
+
+      setConnectionStatus('open');
+
+
+
+      // envia mensagens pendentes
+      while(
+        pendingMessagesRef.current.length
+      ){
+
+        const msg =
+          pendingMessagesRef.current.shift();
+
+        ws.send(
+          JSON.stringify(msg)
+        );
+
+      }
+
+
+    };
+
+
+
+
+
+    ws.onmessage=(event)=>{
+
+
+      let data;
+
+
+      try{
+
+        data=JSON.parse(event.data);
+
+      }catch{
+
+        return;
+
+      }
+
+
+
+      switch(data.type){
+
+
+        case 'chat:init':
+
+          setMessages(
+            data.messages.map(m=>({
+              kind:'message',
+              ...m
+            }))
+          );
+
+          setOnlineCount(data.onlineCount);
+
+        break;
+
+
+
+        case 'chat:new':
+
+          setMessages(prev=>[
+            ...prev,
+            {
+              kind:'message',
+              ...data.message
+            }
+          ]);
+
+          if(
+            !panelOpenRef.current &&
+            data.message.wallet!==address
+          ){
+
+            setUnreadCount(c=>c+1);
+
+          }
+
+        break;
+
+
+
+        case 'chat:join':
+        case 'chat:leave':
+
+          setOnlineCount(data.onlineCount);
+
+
+          setMessages(prev=>[
+            ...prev,
+            {
+              kind:'system',
+              type:data.type,
+              id:`${data.type}-${Date.now()}`,
+              wallet:data.wallet
+            }
+          ]);
+
+        break;
+
+
+
+        case 'chat:presence':
+
+          setOnlineCount(data.onlineCount);
+
+        break;
+
+
+
+        case 'chat:typing':
+
+          if(data.wallet!==address){
+
+            markTyping(data.wallet);
+
+          }
+
+        break;
+
+
+
+        case 'chat:error':
+
+          setLastError({
+            code:data.code,
+            message:data.message
+          });
+
+        break;
+
+
+
+        case 'chat:expired':
+
+          setMessages(prev=>
+            prev.filter(
+              m=>!data.messageIds.includes(m.id)
+            )
+          );
+
+        break;
+
+
+
+        case 'chat:hidden':
+
+          setMessages(prev=>
+            prev.filter(
+              m=>m.id!==data.messageId
+            )
+          );
+
+        break;
+
+
+
+        case 'chat:kicked':
+
+          setLastError({
+            code:'KICKED',
+            message:data.reason
+          });
+
+          ws.close();
+
+        break;
+
+
+      }
+
+
+    };
+
+
+
+
+
+    ws.onclose=()=>{
+
+
+      console.log('[CHAT] CLOSED');
+
+
+      setConnectionStatus('closed');
+
+
+      wsRef.current=null;
+
+
+
+      if(!cancelledRef.current){
+
+        clearTimeout(reconnectRef.current);
+
+
+        reconnectRef.current=setTimeout(
+          connect,
+          RECONNECT_DELAY_MS
+        );
+
+      }
+
+
+    };
+
+
+
+    ws.onerror=(err)=>{
+
+      console.error(
+        '[CHAT WS ERROR]',
+        err
+      );
+
+    };
+
+
+  },[
+    address,
+    connected,
+    markTyping
+  ]);
+
+
+
+
+
+
+
   const disconnectSocket = useCallback(()=>{
+
+
+    cancelledRef.current=true;
 
 
     clearTimeout(
@@ -174,353 +467,51 @@ export function ChatProvider({ children }) {
     }
 
 
-},[]);
-
-
-
-
-
-
-
-const connect = useCallback(()=>{
-
-
-  if(!connected || !address){
-    return;
-  }
-
-
-  disconnectSocket();
-
-
-
-  cancelledRef.current=false;
-
-
-
-  const url = chatWsUrl(address);
-
-
-
-  console.log(
-    '[CHAT CONNECT]',
-    url
-  );
-
-
-
-  setConnectionStatus('connecting');
-
-
-
-  const ws = new WebSocket(url);
-
-
-  wsRef.current = ws;
-
-
-
-
-  ws.onopen = ()=>{
-
-
-    console.log(
-      '[CHAT] WS OPEN'
-    );
-
-
-    if(!cancelledRef.current){
-
-      setConnectionStatus('open');
-
-    }
-
-  };
-
-
-
-
-
-  ws.onmessage=(event)=>{
-
-
-    let data;
-
-
-    try{
-
-      data=JSON.parse(event.data);
-
-    }catch{
-
-      return;
-
-    }
-
-
-
-    switch(data.type){
-
-
-      case 'chat:init':
-
-        setMessages(
-          data.messages.map(
-            m=>({
-              kind:'message',
-              ...m
-            })
-          )
-        );
-
-
-        setOnlineCount(
-          data.onlineCount
-        );
-
-      break;
-
-
-
-      case 'chat:new':
-
-        setMessages(prev=>[
-          ...prev,
-          {
-            kind:'message',
-            ...data.message
-          }
-        ]);
-
-
-
-        if(
-          !panelOpenRef.current &&
-          data.message.wallet!==address
-        ){
-
-          setUnreadCount(
-            c=>c+1
-          );
-
-        }
-
-      break;
-
-
-
-      case 'chat:join':
-      case 'chat:leave':
-
-        setOnlineCount(
-          data.onlineCount
-        );
-
-
-        setMessages(prev=>[
-
-          ...prev,
-
-          {
-            kind:'system',
-
-            type:
-            data.type==='chat:join'
-            ? 'join'
-            : 'leave',
-
-            id:
-            `${data.type}-${data.wallet}-${Date.now()}`,
-
-            wallet:data.wallet
-
-          }
-
-        ]);
-
-      break;
-
-
-
-
-      case 'chat:presence':
-
-        setOnlineCount(
-          data.onlineCount
-        );
-
-      break;
-
-
-
-
-      case 'chat:typing':
-
-        if(data.wallet!==address){
-
-          markTyping(
-            data.wallet
-          );
-
-        }
-
-      break;
-
-
-
-
-      case 'chat:reaction':
-
-        setMessages(prev=>
-
-          prev.map(m=>
-
-            m.id===data.messageId
-
-            ? {
-                ...m,
-                reactions:data.reactions
-              }
-
-            : m
-
-          )
-
-        );
-
-      break;
-
-
-
-
-      case 'chat:hidden':
-
-        setMessages(prev=>
-
-          prev.filter(
-            m=>m.id!==data.messageId
-          )
-
-        );
-
-      break;
-
-
-
-      case 'chat:expired':
-
-        setMessages(prev=>
-
-          prev.filter(
-            m=>
-            !data.messageIds.includes(m.id)
-          )
-
-        );
-
-      break;
-
-
-
-
-      case 'chat:error':
-
-        setLastError({
-
-          code:data.code,
-
-          message:data.message
-
-        });
-
-      break;
-
-
-
-
-      case 'chat:kicked':
-
-        setLastError({
-
-          code:'KICKED',
-
-          message:data.reason
-
-        });
-
-
-        ws.close();
-
-      break;
-
-
-      default:
-
-        break;
-
-    }
-
-
-  };
-
-
-
-
-
-  ws.onclose=(event)=>{
-
-
-    console.log(
-      '[CHAT CLOSED]',
-      event.code,
-      event.reason
-    );
-
-
-
     setConnectionStatus('closed');
 
 
+  },[]);
 
-    if(!cancelledRef.current){
 
 
-      reconnectRef.current =
-      setTimeout(()=>{
 
-        connect();
 
-      },RECONNECT_DELAY_MS);
 
+
+  const send = useCallback((payload)=>{
+
+
+    console.log(
+      '[CHAT SEND]',
+      wsRef.current?.readyState
+    );
+
+
+    if(!sendRaw(payload)){
+
+
+      pendingMessagesRef.current.push(payload);
+
+
+      setLastError({
+
+        code:'CONNECTING',
+
+        message:
+        'Chat connecting, message queued.'
+
+      });
+
+
+      return false;
 
     }
 
 
-  };
+    return true;
 
 
-
-
-
-  ws.onerror=(err)=>{
-
-
-    console.error(
-      '[CHAT ERROR]',
-      err
-    );
-
-
-  };
-
-
-
-},[
-  address,
-  connected,
-  disconnectSocket,
-  markTyping
-]);
+  },[sendRaw]);
 
 
 
@@ -528,265 +519,181 @@ const connect = useCallback(()=>{
 
 
 
+  const sendMessage = useCallback(
+    (text,opts={})=>{
 
-const send = useCallback((payload)=>{
+      send({
 
+        type:'chat:send',
 
-  const ws=wsRef.current;
+        message:text,
 
+        imagePath:opts.imagePath || null,
 
+        replyTo:opts.replyTo || null
 
-  console.log(
-    '[CHAT SEND]',
-    ws?.readyState
+      });
+
+    },
+    [send]
   );
 
 
 
-  if(!ws || ws.readyState!==WebSocket.OPEN){
 
 
-    setLastError({
+  const sendTyping = useCallback(()=>{
 
-      code:'NOT_CONNECTED',
-
-      message:
-      'Chat websocket is not open.'
-
+    send({
+      type:'chat:typing'
     });
 
-
-    return false;
-
-  }
-
-
-
-  ws.send(
-    JSON.stringify(payload)
-  );
-
-
-  return true;
-
-
-},[]);
+  },[send]);
 
 
 
 
+  const react = useCallback((messageId,emoji)=>{
+
+    send({
+      type:'chat:react',
+      messageId,
+      emoji
+    });
+
+  },[send]);
 
 
 
-useEffect(()=>{
 
+  const report = useCallback((messageId)=>{
 
-  cancelledRef.current=false;
+    send({
+      type:'chat:report',
+      messageId
+    });
 
-
-  if(connected && address){
-
-    connect();
-
-  }else{
-
-
-    disconnectSocket();
-
-    setMessages([]);
-
-    setConnectionStatus('closed');
-
-
-  }
+  },[send]);
 
 
 
-  return ()=>{
 
 
-    cancelledRef.current=true;
+  const uploadImage = useCallback(async(file)=>{
+
+    if(!address){
+
+      throw new Error(
+        'Connect wallet first'
+      );
+
+    }
 
 
-    disconnectSocket();
-
-
-    typingTimersRef.current.forEach(
-      timer=>clearTimeout(timer)
+    return uploadChatImage(
+      file,
+      address
     );
 
 
-    typingTimersRef.current.clear();
+  },[address]);
 
+
+
+
+
+
+
+  useEffect(()=>{
+
+
+    if(
+      connected &&
+      address
+    ){
+
+      cancelledRef.current=false;
+
+      connect();
+
+
+    }else{
+
+
+      disconnectSocket();
+
+      setMessages([]);
+
+    }
+
+
+
+    return ()=>{
+
+      disconnectSocket();
+
+    };
+
+
+  },[
+    connected,
+    address
+  ]);
+
+
+
+
+
+
+  const value={
+
+    panelOpen,
+    unreadCount,
+
+    togglePanel,
+    closePanel,
+
+    messages,
+    onlineCount,
+
+    typingWallets,
+
+    connectionStatus,
+
+    lastError,
+
+    clearError,
+
+    sendMessage,
+    sendTyping,
+
+    react,
+    report,
+
+    uploadImage,
+
+    walletAddress:address,
+
+    connected,
+
+    send
 
   };
 
 
-},[
-  connected,
-  address,
-  connect,
-  disconnectSocket
-]);
 
+  return (
 
+    <ChatContext.Provider value={value}>
 
+      {children}
 
+    </ChatContext.Provider>
 
-
-const sendMessage = useCallback(
-(text,opts={})=>{
-
- send({
-
- type:'chat:send',
-
- message:text,
-
- imagePath:opts.imagePath,
-
- replyTo:opts.replyTo
-
- });
-
-
-},
-[send]
-);
-
-
-
-
-const sendTyping = useCallback(()=>{
-
- send({
-  type:'chat:typing'
- });
-
-},[send]);
-
-
-
-
-const react = useCallback(
-(messageId,emoji)=>{
-
- send({
-
- type:'chat:react',
-
- messageId,
-
- emoji
-
- });
-
-},
-[send]
-);
-
-
-
-
-const report = useCallback(
-(messageId)=>{
-
- send({
-
- type:'chat:report',
-
- messageId
-
- });
-
-},
-[send]
-);
-
-
-
-
-const uploadImage = useCallback(
-async(file)=>{
-
- if(!address){
-
-  throw new Error(
-   'Connect wallet first.'
   );
-
- }
-
- return uploadChatImage(
-  file,
-  address
- );
-
-},
-[address]
-);
-
-
-
-
-
-
-const value={
-
- panelOpen,
-
- unreadCount,
-
- togglePanel,
-
- closePanel,
-
- messages,
-
- onlineCount,
-
- typingWallets,
-
- connectionStatus,
-
- lastError,
-
- clearError,
-
- sendMessage,
-
- sendTyping,
-
- react,
-
- report,
-
- uploadImage,
-
- walletAddress:address,
-
- connected,
-
- send
-
-};
-
-
-
-
-return (
-
-<ChatContext.Provider value={value}>
-
- {children}
-
-</ChatContext.Provider>
-
-);
 
 
 }
-
 
 
 export default ChatProvider;
