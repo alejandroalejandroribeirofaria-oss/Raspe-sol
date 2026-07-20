@@ -44,7 +44,12 @@ export function useWallet() {
   return ctx;
 }
 
-const endpoint = clusterApiUrl('mainnet-beta');
+// ==================== ALTERAÇÃO 1 ====================
+const endpoint =
+  import.meta.env.VITE_SOLANA_RPC_URL || clusterApiUrl('mainnet-beta');
+
+console.log('RPC Endpoint:', endpoint);
+// =====================================================
 
 function WalletBridge({ children }) {
   const wallet = useSolanaWallet();
@@ -64,11 +69,15 @@ function WalletBridge({ children }) {
       return 0;
     }
 
+    // ==================== ALTERAÇÃO 2 ====================
+    console.log('Wallet:', wallet.publicKey?.toBase58());
+
     try {
-      const balance = await connection.getBalance(
-        wallet.publicKey,
-        'confirmed'
-      );
+      const balance = await connection.getBalance(wallet.publicKey);
+
+      console.log('Lamports:', balance);
+      console.log('SOL:', balance / 1e9);
+      // ====================================================
 
       setBalanceLamports(balance);
 
