@@ -1,4 +1,4 @@
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 
 import {
   sendMessage,
@@ -22,7 +22,7 @@ const clients = new Set();
 
 
 function send(ws, type, payload = {}) {
-  if (!ws || ws.readyState !== ws.OPEN) return;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
   ws.send(JSON.stringify({
     type,
@@ -43,7 +43,7 @@ function broadcast(type, payload = {}, exclude = null) {
 
     if (client === exclude) continue;
 
-    if (client.readyState === client.OPEN) {
+    if (client.readyState === WebSocket.OPEN) {
       client.send(message);
     }
   }
@@ -93,7 +93,6 @@ export function initChatHub(server) {
     let wallet = null;
 
 
-
     try {
 
       const url = new URL(
@@ -113,13 +112,11 @@ export function initChatHub(server) {
     }
 
 
-
     if (!wallet) {
 
       console.log(
         '[CHAT] conexão recusada: sem wallet'
       );
-
 
       send(
         ws,
@@ -130,12 +127,10 @@ export function initChatHub(server) {
         }
       );
 
-
       ws.close();
       return;
 
     }
-
 
 
     console.log(
@@ -144,17 +139,14 @@ export function initChatHub(server) {
     );
 
 
-
     ws._wallet = wallet;
 
 
     clients.add(ws);
 
 
-
     const wentOnline =
       registerConnection(wallet, ws);
-
 
 
     const activeMessages =
@@ -167,7 +159,6 @@ export function initChatHub(server) {
           m => m.id
         )
       );
-
 
 
     send(
@@ -185,7 +176,6 @@ export function initChatHub(server) {
     );
 
 
-
     if (wentOnline) {
 
       broadcast(
@@ -200,7 +190,6 @@ export function initChatHub(server) {
     }
 
 
-
     broadcast(
       'chat:presence',
       {
@@ -209,14 +198,9 @@ export function initChatHub(server) {
     );
 
 
-
-
-
     ws.on('message',(raw)=>{
 
-
       let msg;
-
 
       try {
 
@@ -230,17 +214,11 @@ export function initChatHub(server) {
 
       }
 
-
-
       touchLastSeen(wallet);
-
-
 
       try {
 
-
         switch(msg.type){
-
 
           case 'chat:send':
 
@@ -252,7 +230,6 @@ export function initChatHub(server) {
                 replyTo:msg.replyTo || null,
               });
 
-
             broadcast(
               'chat:new',
               {
@@ -261,10 +238,7 @@ export function initChatHub(server) {
               }
             );
 
-
           break;
-
-
 
           case 'chat:typing':
 
@@ -276,14 +250,10 @@ export function initChatHub(server) {
 
           break;
 
-
-
-
           case 'chat:react':
 
             if(!msg.messageId || !msg.emoji)
               break;
-
 
             broadcast(
               'chat:reaction',
@@ -294,23 +264,18 @@ export function initChatHub(server) {
               })
             );
 
-
           break;
-
-
 
           case 'chat:report':
 
             if(!msg.messageId)
               break;
 
-
             const result =
               reportMessage({
                 messageId:msg.messageId,
                 wallet
               });
-
 
             if(result.hidden){
 
@@ -332,22 +297,16 @@ export function initChatHub(server) {
 
             }
 
-
           break;
-
 
         }
 
-
-
       } catch(err){
-
 
         console.error(
           '[CHAT ERROR]',
           err
         );
-
 
         if(err instanceof ChatError){
 
@@ -359,7 +318,6 @@ export function initChatHub(server) {
               message:err.message
             }
           );
-
 
         }else{
 
@@ -376,33 +334,22 @@ export function initChatHub(server) {
 
       }
 
-
     });
 
-
-
-
-
     ws.on('close',()=>{
-
 
       console.log(
         '[CHAT] desconectado:',
         wallet
       );
 
-
       clients.delete(ws);
-
-
 
       const wentOffline =
         unregisterConnection(
           wallet,
           ws
         );
-
-
 
       if(wentOffline){
 
@@ -425,11 +372,7 @@ export function initChatHub(server) {
 
       }
 
-
     });
-
-
-
 
     ws.on('error',(err)=>{
 
@@ -441,18 +384,11 @@ export function initChatHub(server) {
 
     });
 
-
-
   });
-
-
 
   return wss;
 
 }
-
-
-
 
 export function kickWallet(
   wallet,
@@ -461,7 +397,6 @@ export function kickWallet(
 
   const sockets =
     getSocketsForWallet(wallet);
-
 
   for(const ws of sockets){
 
@@ -473,23 +408,18 @@ export function kickWallet(
       }
     );
 
-
     ws.close();
 
   }
-
 
   return sockets.length;
 
 }
 
-
-
 export function broadcastExpired(messageIds){
 
   if(!messageIds.length)
     return;
-
 
   broadcast(
     'chat:expired',
