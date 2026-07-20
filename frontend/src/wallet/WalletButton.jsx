@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useI18n } from '../i18n/I18nProvider';
 import { useWallet } from './WalletProvider';
 import {
@@ -26,20 +26,6 @@ export default function WalletButton() {
   } = useWallet();
 
   const [copied, setCopied] = useState(false);
-
-  // Conecta o WS quando a wallet conectar com validação do Phantom
-  useEffect(() => {
-    const tryConnectWS = () => {
-      if (window.solana?.isConnected && window.solana.publicKey) {
-        const realAddress = window.solana.publicKey.toString();
-        console.log('[WS] Conectando com wallet REAL:', realAddress);
-        window.connectWS?.(realAddress);
-      } else {
-        console.log('[WS] Phantom não conectada ainda');
-      }
-    };
-    tryConnectWS();
-  }, [status, address]);
 
   const handleConnectClick = async () => {
     try {
