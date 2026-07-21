@@ -196,6 +196,8 @@ function WalletBridge({ children }) {
         connection
       );
 
+      console.log("Signature:", signature);
+
       await connection.confirmTransaction(
         {
           signature,
