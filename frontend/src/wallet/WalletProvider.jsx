@@ -45,8 +45,14 @@ export function useWallet() {
 }
 
 // ==================== ALTERAÇÃO 1 ====================
-const endpoint =
-  import.meta.env.VITE_SOLANA_RPC_URL || clusterApiUrl('mainnet-beta');
+const RPC_URL = import.meta.env.VITE_SOLANA_RPC_URL;
+
+if (!RPC_URL) {
+  console.error("RPC Solana não configurado. Checa o .env.production");
+  throw new Error("VITE_SOLANA_RPC_URL is missing");
+}
+
+const endpoint = RPC_URL;
 
 console.log('🔗 RPC Endpoint:', endpoint);
 // =====================================================
