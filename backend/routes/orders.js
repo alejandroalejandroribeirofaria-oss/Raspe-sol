@@ -58,6 +58,9 @@ router.post('/orders/:orderId/confirm', confirmLimiter, async (req, res) => {
   const { ip, userAgent } = clientMeta(req);
 
   try {
+    // LOG: confirma recebimento da requisição de confirmação
+    console.log('CONFIRM RECEBIDO', { orderId, signature, wallet });
+
     // ESPERA A REDE CONFIRMAR PRIMEIRO
     await new Promise((resolve, reject) => {
       watchSignature(signature, {
@@ -66,8 +69,16 @@ router.post('/orders/:orderId/confirm', confirmLimiter, async (req, res) => {
       });
     });
 
+    // LOG: watchSignature retornou OK
+    console.log('WATCH OK');
+
     // DEPOIS MARCA COMO PAGO
+    console.log('INICIANDO confirmPayment()');
     const { order, tickets, alreadyPaid } = await confirmPayment({ orderId, signature, wallet, ip, userAgent });
+
+    // LOG: confirmPayment finalizou com sucesso
+    console.log('confirmPayment OK', { orderId, txSignature: order?.tx_signature, grantedQty: order?.granted_qty });
+
     broadcastOrderUpdate(orderId, { status: 'PAID', txSignature: order.tx_signature, grantedQty: order.granted_qty });
 
     return res.json({
