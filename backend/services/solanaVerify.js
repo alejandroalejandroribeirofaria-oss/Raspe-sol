@@ -61,7 +61,9 @@ export async function verifyPayment({ signature, expectedWallet }) {
     throw new VerificationError('MISSING_SIGNATURE', 'Transaction signature is required.');
   }
 
+  console.log("Verificando assinatura:", signature);
   const tx = await fetchTransactionWithRetry(signature);
+  console.log("Transação encontrada:", !!tx);
 
   if (!tx) throw new VerificationError('TRANSACTION_NOT_FOUND', 'Transaction not found.');
   if (!tx.meta) throw new VerificationError('TRANSACTION_META_MISSING', 'Transaction metadata unavailable.');
@@ -153,4 +155,3 @@ export function watchSignature(signature, { onConfirmed, onTimeout, timeoutMs = 
     if (!settled) connection.removeSignatureListener(subId);
   };
 }
-
